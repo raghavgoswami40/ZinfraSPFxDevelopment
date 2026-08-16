@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "vertical-flow-client-side-solution",
+    "id": "ee0788b2-0064-4423-884a-1296e6054318",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.20.0"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Vertical Flow description"
+      },
+      "longDescription": {
+        "default": "Vertical Flow description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "vertical-flow Feature",
+        "description": "The feature that activates elements of the vertical flow solution.",
+        "id": "0701154f-d899-4132-bc18-8052adc7913a",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/Vertical Flow.sppkg"
+  }
+}
