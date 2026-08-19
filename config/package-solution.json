@@ -8,18 +8,17 @@
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
     "developer": {
-      "name": "",
+      "name": "XLYOUR",
       "websiteUrl": "",
       "privacyUrl": "",
-      "termsOfUseUrl": "",
-      "mpnId": "Undefined-1.20.0"
+      "termsOfUseUrl": ""
     },
     "metadata": {
       "shortDescription": {
-        "default": "Vertical Flow description"
+        "default": "Vertical phase, section and step diagram for a project delivery process."
       },
       "longDescription": {
-        "default": "Vertical Flow description"
+        "default": "Renders a project delivery process as a vertical stack of phases. Each section holds a row of steps drawn as boxes, client-approval pills, SAP status hexagons or gate diamonds, with step reference numbers generated automatically."
       },
       "screenshotPaths": [],
       "videoUrl": "",

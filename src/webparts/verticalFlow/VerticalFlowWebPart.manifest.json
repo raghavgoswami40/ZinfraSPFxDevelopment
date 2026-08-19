@@ -16,7 +16,6 @@
       "description": { "default": "Vertical phase/section/step flow diagram" },
       "officeFabricIconFontName": "BulletedList",
       "properties": {
-        "urls": {},
         "phases": []
       }
     }

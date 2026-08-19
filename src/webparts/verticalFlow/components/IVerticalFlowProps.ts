@@ -1,14 +1,20 @@
 export interface StoredStep {
   id: string;
   label: string;
-  isApproval?: boolean;
+  shape?: 'box' | 'approval' | 'sapStatus' | 'gate' | 'group';
+  noPrefix?: boolean; // sapStatus shape only - suppress the fixed "SAP Status" first line
+  children?: StoredStep[]; // 'group' shape only — steps rendered inside the dashed container
 }
 
 export interface StoredSection {
   id: string;
   title: string;
-  numRows: number;
   steps: StoredStep[];
+  variant?: 'blue' | 'grey';
+  // Prefix for the auto-generated step code badges, e.g. "2.1" -> 2.1.1, 2.1.2...
+  // Omit when the section title already starts with the number (it is derived);
+  // required for sections with no visible heading.
+  codePrefix?: string;
 }
 
 export interface StoredPhase {
@@ -18,7 +24,6 @@ export interface StoredPhase {
 }
 
 export interface IVerticalFlowProps {
-  urls: Record<string, string>;
   phases: StoredPhase[];
   isEditMode: boolean;
   onPhasesChange: (phases: StoredPhase[]) => void;

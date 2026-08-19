@@ -1,8 +1,11 @@
 $dark:       #1c1c1c;
 $green:      #b9ce33;
 $blue:       #2dafe3;
-$step-bg:    rgba(255, 255, 255, 0.45);
-$approval-bg: rgba(255, 255, 255, 0.75);
+$grey:       #9e9e9e;
+$step-bg:    $dark; // same near-black as the phase header banner
+
+$hexagon: polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%);
+$diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
 
 .wrapper {
   display: flex;
@@ -60,7 +63,11 @@ $approval-bg: rgba(255, 255, 255, 0.75);
   overflow: hidden;
 }
 
-/* Left: section name + go to flow button */
+.sectionRowGrey {
+  background: $grey;
+}
+
+/* Left: section name */
 .sectionLabel {
   min-width: 120px;
   width: 120px;
@@ -90,35 +97,10 @@ $approval-bg: rgba(255, 255, 255, 0.75);
   outline: none;
 }
 
-/* Go to flow — lives inside sectionLabel, below the title */
-.goToFlow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  color: $blue;
-  font-weight: 600;
-  font-size: 11px;
-  border-radius: 5px;
-  padding: 4px 10px;
-  cursor: pointer;
-  white-space: nowrap;
-  user-select: none;
-  transition: opacity 0.15s;
-  align-self: flex-start;
-
-  &:hover { opacity: 0.8; }
-}
-
-.disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
 /* Right: steps area */
 .sectionContent {
   flex: 1;
-  padding: 10px 12px 10px 8px;
+  padding: 18px 12px 12px 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -135,6 +117,11 @@ $approval-bg: rgba(255, 255, 255, 0.75);
 }
 
 /* ── Step boxes ──────────────────────────────────────────── */
+/* Steps have no links, so no cursor/hover/opacity affordances — always a
+   solid, fully opaque #1c1c1c fill.
+   Non-rectangular shapes paint their fill via a clipped ::before layer rather
+   than clipping the element itself, so badges and edit buttons positioned at
+   the element's corners stay visible instead of being cut away by clip-path. */
 .step {
   background: $step-bg;
   border-radius: 6px;
@@ -143,26 +130,151 @@ $approval-bg: rgba(255, 255, 255, 0.75);
   justify-content: center;
   box-sizing: border-box;
   padding: 4px;
-  cursor: pointer;
-  transition: opacity 0.15s;
   position: relative;
-
-  &:hover { opacity: 0.85; }
 }
 
-.approval {
-  background: $approval-bg;
-  clip-path: polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%);
+.shapeApproval,
+.shapeSapStatus,
+.shapeGate {
+  background: transparent;
+  border-radius: 0;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: $step-bg;
+    z-index: 0;
+  }
 }
 
-.noUrl {
-  cursor: default;
-  opacity: 0.7;
+/* Client Approval — rounded pill (shorter than the other shapes) */
+.shapeApproval {
+  padding: 4px 18px;
+
+  &::before { border-radius: 999px; }
+}
+
+/* SAP Status — hexagon, with a fixed "SAP Status" line above the status text */
+.shapeSapStatus {
+  padding: 4px 16px;
+  flex-direction: column;
+  gap: 1px;
+
+  &::before { clip-path: $hexagon; }
+}
+
+/* Gate — diamond, filled lime. Dark label because white on $green is unreadable. */
+.shapeGate {
+  padding: 4px 24px;
+
+  &::before {
+    clip-path: $diamond;
+    background: $green;
+  }
+
+  .stepLabel { color: $dark; font-weight: 700; }
+}
+
+.sapPrefix {
+  position: relative;
+  z-index: 1;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: rgba(255,255,255,0.75);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+/* Dashed group — transparent container holding full-size nested steps.
+   Spans 2 grid columns; horizontal padding stays 0 so the nested steps come out
+   the same width as the standalone steps beside them.
+   The title is taken OUT of flow (see .groupTitle) so the container's height is
+   just the nested steps plus padding — that makes those steps centre on the same
+   line as every other shape in the row instead of being pushed down by the title. */
+.shapeGroup {
+  border: 2px dashed rgba(255,255,255,0.85);
+  border-radius: 6px;
+  background: transparent;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0; /* top/bottom room so the nested badges clear the title above */
+  /* Symmetric vertical margin is deliberate: with align-self centre, equal top
+     and bottom margins keep the nested steps on the row centre line. Uneven
+     values would shift them off the other shapes again. */
+  margin: 6px;
+}
+
+/* Sits above the dashed box, in the gap between rows, contributing no height. */
+.groupTitle {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  line-height: 1.15;
+  padding: 0 4px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.groupChildren {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Matches .groupTitle's out-of-flow placement so editing doesn't shift the box */
+.groupTitleEditor {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  height: 18px;
+  background: rgba(255,255,255,0.9);
+  border: 1px solid $blue;
+  border-radius: 3px;
+  font-size: 9px;
+  resize: none;
+  outline: none;
+  padding: 1px 3px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+/* Step code badge — every shape except gate diamonds; straddles the top edge */
+.stepCodeBadge {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  background: #404040; /* lighter than the black step so the chip stays distinct */
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
 }
 
 .stepLabel {
+  position: relative;
+  z-index: 1;
   font-size: 11px;
-  color: #1c1c1c;
+  color: #fff;
   text-align: center;
   line-height: 1.3;
   overflow: hidden;
@@ -172,6 +284,8 @@ $approval-bg: rgba(255, 255, 255, 0.75);
 }
 
 .stepEditor {
+  position: relative;
+  z-index: 2;
   width: 100%;
   height: 100%;
   background: rgba(255,255,255,0.9);
@@ -202,7 +316,30 @@ $approval-bg: rgba(255, 255, 255, 0.75);
   align-items: center;
   justify-content: center;
   padding: 0;
-  z-index: 1;
+  z-index: 3;
+
+  &:hover { background: rgba(200,0,0,1); }
+}
+
+/* Smaller remove button for steps nested inside a dashed group */
+.removeBtnSmall {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(200,0,0,0.75);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 3;
 
   &:hover { background: rgba(200,0,0,1); }
 }
@@ -231,30 +368,6 @@ $approval-bg: rgba(255, 255, 255, 0.75);
   &:hover { background: rgba(200,0,0,1); }
 }
 
-.rowBtn {
-  background: rgba(255,255,255,0.25);
-  border: 1px solid rgba(255,255,255,0.5);
-  border-radius: 4px;
-  color: #fff;
-  font-size: 11px;
-  padding: 2px 10px;
-  cursor: pointer;
-  white-space: nowrap;
-
-  &:hover { background: rgba(255,255,255,0.4); }
-}
-
-.rowBtnDisabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.rowCount {
-  font-size: 10px;
-  color: rgba(255,255,255,0.7);
-  font-style: italic;
-}
-
 .addStepBtn {
   background: rgba(255,255,255,0.2);
   border: 1px dashed rgba(255,255,255,0.6);
@@ -266,6 +379,67 @@ $approval-bg: rgba(255, 255, 255, 0.75);
   align-self: flex-start;
 
   &:hover { background: rgba(255,255,255,0.35); }
+}
+
+/* ── Add-step shape picker ───────────────────────────────── */
+/* Rendered inline (not absolutely positioned) so it can't be clipped/reflowed
+   by the scrollable/overflow-hidden ancestors (.sectionRow, .sectionContent). */
+.addStepWrap {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.addMenu {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.addMenuItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+
+  &:hover { background: rgba(255,255,255,0.12); }
+}
+
+/* Monochrome shape-preview glyphs — mirror the real step geometry, no color coding */
+.addMenuShapePreview {
+  width: 22px;
+  height: 16px;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.7);
+  border-radius: 3px;
+}
+
+.previewBox       { border-radius: 3px; }
+.previewApproval  { border-radius: 999px; }
+.previewSapStatus { clip-path: $hexagon; }
+.previewGate      { clip-path: $diamond; }
+
+.previewGroup {
+  background: transparent;
+  border: 1px dashed rgba(255,255,255,0.85);
+  border-radius: 3px;
 }
 
 .addSectionBtn {

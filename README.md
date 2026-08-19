@@ -2,9 +2,7 @@
 
 ## Summary
 
-Standalone SPFx solution containing the **Vertical Flow** web part — a vertical phase/section/step flow diagram with per-step URL configuration via the property pane.
-
-This solution was split out of the `process-hierarchy` SPFx project so Vertical Flow can be built, packaged, and deployed independently.
+Standalone SPFx solution containing the **Vertical Flow** web part — a vertical phase / section / step diagram for visualising a project delivery process.
 
 ## Used SharePoint Framework Version
 
@@ -37,13 +35,38 @@ This solution was split out of the `process-hierarchy` SPFx project so Vertical 
 
 - Clone this repository
 - Ensure that you are at the solution folder
+- Set `initialPage` in `config/serve.json` to your own SharePoint site's workbench
 - in the command-line run:
   - **npm install**
   - **gulp serve**
 
+## Packaging
+
+- **gulp clean**
+- **gulp bundle --ship**
+- **gulp package-solution --ship**
+
+The package is written to `solution/Vertical Flow.sppkg`. Client-side assets are
+included in the package, so no CDN configuration is required.
+
 ## Features
 
-The **Vertical Flow** web part renders a vertical sequence of phases, sections, and steps. Each step can be linked to a SharePoint page URL from the web part's property pane; in edit mode, phases/sections/steps can be authored directly on the page.
+The **Vertical Flow** web part renders a delivery process as a vertical stack of phases. Each phase contains one or more sections, and each section holds a row of steps.
+
+Steps come in four shapes, chosen when the step is added:
+
+| Shape        | Used for                                                             |
+| ------------ | -------------------------------------------------------------------- |
+| Rectangle    | A standard process step                                              |
+| Rounded pill | A client approval                                                    |
+| Hexagon      | A SAP status, labelled `SAP Status` above the status code            |
+| Diamond      | A gate                                                               |
+
+Steps can also be wrapped in a dashed grouping container with its own title, for steps that apply only in particular cases.
+
+Step reference numbers (`2.1.1`, `2.1.2`, …) are generated automatically from each step's position within its section, so inserting, removing, or reordering steps renumbers the rest. Gate diamonds are not numbered. Steps fill each row before wrapping to the next.
+
+Phases, sections, and steps are authored directly on the page in edit mode: click any title to rename it, use **+ Add step** to insert a shape, and **×** to remove one.
 
 ## References
 
