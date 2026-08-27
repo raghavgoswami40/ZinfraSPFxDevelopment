@@ -4,9 +4,11 @@ import { IVerticalFlowProps, StoredSection, StoredStep } from './IVerticalFlowPr
 
 const BOX_H      = 70;
 const APPROVAL_H = 46; // Client Approval pills sit shorter than the other shapes
+const SAP_H      = 46; // SAP status hexagons only need two short lines
+const SAP_W      = 78; // ...and are narrower than a full column, capped by boxW below
 const GAP        = 8;
 const ROW_GAP    = 22; // between wrapped rows — leaves room for the code badges above each step
-const MAX_COLS   = 5;  // column units per row; boxW is measured so 5 fit exactly
+const MIN_COLS   = 5;  // floor, so a flow with only a few shapes doesn't get absurdly wide boxes
 
 const uid = (prefix: string): string => `${prefix}_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
 
@@ -29,15 +31,20 @@ const COL_SPAN: Record<StepShape, number> = { box: 1, approval: 1, sapStatus: 1,
 
 const getSpan = (step: StoredStep): number => COL_SPAN[getShape(step)];
 
-// Pack steps greedily: fill each row up to MAX_COLS column units before
-// wrapping, so earlier rows are full rather than every row being equal length.
-const packRows = (steps: StoredStep[]): StoredStep[][] => {
+// Column units a section needs to lay its steps out on a single row.
+const sectionSpan = (section: StoredSection): number =>
+  section.steps.reduce((sum, st) => sum + getSpan(st), 0);
+
+// Pack steps greedily: fill each row up to maxCols column units before
+// wrapping. Since maxCols is the widest section in the whole flow, every
+// section fits on one row — this stays as a guard rather than a layout step.
+const packRows = (steps: StoredStep[], maxCols: number): StoredStep[][] => {
   const rows: StoredStep[][] = [];
   let row: StoredStep[] = [];
   let used = 0;
   steps.forEach(step => {
     const span = getSpan(step);
-    if (row.length > 0 && used + span > MAX_COLS) {
+    if (row.length > 0 && used + span > maxCols) {
       rows.push(row);
       row = [];
       used = 0;
@@ -84,8 +91,20 @@ const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhas
   const [editing, setEditing]     = React.useState<EditTarget | null>(null);
   const [editValue, setEditValue] = React.useState('');
 
+  // One column count for the whole flow — the widest section's span — so every
+  // section lays out on a single row, and every shape and gap is the same size
+  // in every section rather than varying with how many steps a section holds.
+  const maxCols = React.useMemo(() => {
+    let max = MIN_COLS;
+    phases.forEach(ph => ph.sections.forEach(sec => {
+      const span = sectionSpan(sec);
+      if (span > max) max = span;
+    }));
+    return max;
+  }, [phases]);
+
   // Measured box width — computed from the first section's content area so that
-  // exactly 5 boxes fit in one row across every section.
+  // exactly maxCols columns fit in one row across every section.
   const [boxW, setBoxW] = React.useState(100);
   const measureRef = React.useRef<HTMLDivElement>(null);
 
@@ -110,8 +129,9 @@ const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhas
     const compute = (): void => {
       const w = el.clientWidth;
       if (w > 0) {
-        // w is the inner content width of sectionContent; 5 boxes + 4 gaps fill it exactly
-        setBoxW(Math.max(60, Math.floor((w - (MAX_COLS - 1) * GAP) / MAX_COLS)));
+        // w is the inner content width of sectionContent; maxCols boxes plus
+        // their gaps fill it exactly
+        setBoxW(Math.max(60, Math.floor((w - (maxCols - 1) * GAP) / maxCols)));
       }
     };
     compute();
@@ -120,7 +140,11 @@ const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhas
       ro.observe(el);
       return () => ro.disconnect();
     }
-  }, []);
+  }, [maxCols]);
+
+  // SAP status hexagons are sized just for their two short lines, so they are
+  // narrower than a full column — capped at boxW so they never overflow it.
+  const sapW = Math.min(SAP_W, boxW);
 
   // Step sizing. Shape geometry (pill/hexagon/diamond) is drawn by a clipped
   // ::before background layer in CSS, so these elements stay unclipped and can
@@ -136,15 +160,22 @@ const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhas
         alignSelf: 'center',
       };
     }
-    const h = shape === 'approval' ? APPROVAL_H : BOX_H;
-    return {
-      width: boxW, minWidth: boxW, maxWidth: boxW,
-      height: h, minHeight: h, maxHeight: h,
+    const w = shape === 'sapStatus' ? sapW : boxW;
+    const base: React.CSSProperties = {
+      width: w, minWidth: w, maxWidth: w,
       position: 'relative',
       overflow: 'visible',
-      alignSelf: 'center',
+      justifySelf: 'center', // keeps the narrower hexagon centred in its boxW column
       flexShrink: 0,
     };
+    // Box steps carry the long labels, so they are only floored at BOX_H and
+    // grow to fit their text; stretching makes every box in a row match the
+    // tallest. The fixed-geometry shapes keep their exact size and centre.
+    if (shape === 'box') {
+      return { ...base, minHeight: BOX_H, alignSelf: 'stretch' };
+    }
+    const h = shape === 'approval' ? APPROVAL_H : shape === 'sapStatus' ? SAP_H : BOX_H;
+    return { ...base, height: h, minHeight: h, maxHeight: h, alignSelf: 'center' };
   };
 
   // Grid row style — column count is the sum of the row's shape spans, so a
@@ -293,7 +324,7 @@ const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhas
           <div
             key={child.id}
             className={`${styles.step} ${styles.shapeSapStatus}`}
-            style={{ flex: 1, minWidth: 0, height: BOX_H, position: 'relative', overflow: 'visible' }}
+            style={{ width: sapW, height: SAP_H, flexShrink: 0, position: 'relative', overflow: 'visible' }}
           >
             {codes.get(child.id) && <span className={styles.stepCodeBadge}>{codes.get(child.id)}</span>}
             {renderStepContent(child, 'Click to edit status')}
@@ -358,40 +389,47 @@ const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhas
   const renderSection = (section: StoredSection, phaseId: string, isFirstSection: boolean): JSX.Element => {
     const isEditingLabel = editing?.id === section.id && editing?.type === 'section';
     const codes = buildCodeMap(section);
-    const stepRows = packRows(section.steps);
+    const stepRows = packRows(section.steps, maxCols);
     const sectionCls = [
       styles.sectionRow,
       section.variant === 'grey' ? styles.sectionRowGrey : '',
     ].filter(Boolean).join(' ');
 
+    // The banner is one line, so a stored "2.1\nESTABLISH" reads as "2.1 ESTABLISH".
+    // Handles titles already saved with newlines in a page's property bag.
+    const bannerTitle = (section.title || '').replace(/\s*\n\s*/g, ' ').trim();
+
     return (
       <div key={section.id} className={sectionCls}>
 
-        {/* LEFT: section title */}
-        <div className={styles.sectionLabel}>
-          {isEditMode && isEditingLabel ? (
-            <textarea
-              className={styles.sectionLabelEditing}
-              value={editValue}
-              autoFocus
-              rows={3}
-              onChange={e => setEditValue(e.target.value)}
-              onBlur={commitEdit}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
-                if (e.key === 'Escape') cancelEdit();
-              }}
-            />
-          ) : (
-            <span
-              style={isEditMode ? { cursor: 'pointer' } : {}}
-              onClick={isEditMode ? () => startEdit(section.id, 'section', section.title) : undefined}
-              title={isEditMode ? 'Click to rename' : undefined}
-            >{section.title}</span>
-          )}
-        </div>
+        {/* TOP: section title banner. Hidden entirely when a section has no
+            title, so the untitled sections don't waste a band of vertical
+            space — but always shown in edit mode so it stays renameable. */}
+        {(isEditMode || bannerTitle) && (
+          <div className={styles.sectionHeader}>
+            {isEditMode && isEditingLabel ? (
+              <input
+                className={styles.sectionLabelEditing}
+                value={editValue}
+                autoFocus
+                onChange={e => setEditValue(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { e.preventDefault(); commitEdit(); }
+                  if (e.key === 'Escape') cancelEdit();
+                }}
+              />
+            ) : (
+              <span
+                style={isEditMode ? { cursor: 'pointer' } : {}}
+                onClick={isEditMode ? () => startEdit(section.id, 'section', bannerTitle) : undefined}
+                title={isEditMode ? 'Click to rename' : undefined}
+              >{bannerTitle || (isEditMode ? '(no title)' : '')}</span>
+            )}
+          </div>
+        )}
 
-        {/* RIGHT: steps */}
+        {/* BELOW: steps, now spanning the full width of the section */}
         <div className={styles.sectionContent}>
           {/* Invisible measure div in the first section — used to compute boxW */}
           {isFirstSection && (

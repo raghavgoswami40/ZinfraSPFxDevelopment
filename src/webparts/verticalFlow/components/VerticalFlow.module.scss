@@ -53,11 +53,14 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
 }
 
 /* ── Section row (entirely blue) ─────────────────────────── */
+/* Stacked: title banner on top, steps below. The title used to occupy a fixed
+   120px column on the left; moving it into a banner hands that width back to
+   the steps, which size themselves from .sectionContent's measured width. */
 .sectionRow {
   background: $blue;
   border-radius: 10px;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: stretch;
   position: relative;
   overflow: hidden;
@@ -67,40 +70,41 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   background: $grey;
 }
 
-/* Left: section name */
-.sectionLabel {
-  min-width: 120px;
-  width: 120px;
-  padding: 14px 12px 14px 14px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: 10px;
-  flex-shrink: 0;
+/* Top: section title banner. A translucent black overlay rather than a fixed
+   colour, so it darkens whichever variant ($blue or $grey) sits behind it and
+   still reads as subordinate to the phase header. */
+.sectionHeader {
+  background: rgba(0,0,0,0.22);
   color: #fff;
   font-weight: 700;
   font-size: 13px;
+  letter-spacing: 0.4px;
   line-height: 1.3;
-  white-space: pre-line;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  box-sizing: border-box;
 }
 
 .sectionLabelEditing {
-  background: rgba(0,0,0,0.2);
-  border: 1px solid rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.55);
   border-radius: 4px;
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  padding: 4px 6px;
-  width: 90px;
-  resize: none;
+  letter-spacing: 0.4px;
+  padding: 1px 8px;
+  width: 260px;
+  max-width: 100%;
   outline: none;
 }
 
-/* Right: steps area */
+/* Below: steps area, now the full width of the section */
 .sectionContent {
   flex: 1;
-  padding: 18px 12px 12px 8px;
+  padding: 18px 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -157,7 +161,7 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
 
 /* SAP Status — hexagon, with a fixed "SAP Status" line above the status text */
 .shapeSapStatus {
-  padding: 4px 16px;
+  padding: 4px 8px;
   flex-direction: column;
   gap: 1px;
 
@@ -173,7 +177,14 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
     background: $green;
   }
 
-  .stepLabel { color: $dark; font-weight: 700; }
+  .stepLabel {
+    color: $dark;
+    font-weight: 700;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
 }
 
 .sapPrefix {
@@ -270,6 +281,9 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   white-space: nowrap;
 }
 
+/* No line clamp: box steps show their label in full and grow taller if they
+   need to. The fixed-geometry shapes below keep a clamp, because they cannot
+   grow and their clip-path would let overflowing text spill outside the shape. */
 .stepLabel {
   position: relative;
   z-index: 1;
@@ -277,9 +291,15 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   color: #fff;
   text-align: center;
   line-height: 1.3;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.shapeApproval .stepLabel,
+.shapeSapStatus .stepLabel {
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
