@@ -1,0 +1,388 @@
+/* ── Design tokens (§2) ──────────────────────────────────────────────────── */
+$panel-header-bg: #000000;
+$panel-gradient:  linear-gradient(to bottom, #000 0%, #1b1b1b 35%, #333 70%, #4a4a4a 100%);
+
+$text-primary:    #ffffff;
+$text-body:       #ffffff; // same as $text-primary today; kept separate so body
+                           // copy and headings can diverge again without a hunt
+$text-muted:      #c3c3c3;
+$text-accent:     #7ec8f0;
+
+// Vertical Flow's own $blue, used exactly (not $text-accent) so the section
+// labels read as the same accent as the process hierarchy. At 15px/700 this is
+// ~3.5:1 against the panel's lightest gradient stop (#4a4a4a) — under the 4.5:1
+// AA floor for normal-size text. PURPOSE (near the top of the panel, where the
+// background is near-black) stays comfortably legible; OUTPUTS/INPUTS on a
+// long step, or an L4 row's own OUTPUTS label lower in the panel, are the
+// cases worth an eye on if the panel is ever stretched taller or restyled.
+$section-label-color: #2dafe3;
+
+$divider:         rgba(255, 255, 255, 0.12);
+$divider-strong:  rgba(255, 255, 255, 0.14);
+$row-hover-open:  rgba(255, 255, 255, 0.12);
+
+$badge-bg:        #0f6cbd;
+
+// Matches Vertical Flow's own $green/$dark pair (VerticalFlow.module.scss),
+// declared locally since the two web parts don't share a stylesheet. Reuses
+// the same "dark text on green fill" pattern Vertical Flow uses for its gate
+// diamonds, so an L4 row visually echoes the hierarchy's own phase color.
+$l4-badge-bg:   #b9ce33;  // Vertical Flow's $green
+$l4-badge-text: #1c1c1c;  // Vertical Flow's $dark — unreadable in white on this green
+$l4-name-color: $l4-badge-bg; // same exact green as the badge -> ~5.1:1 vs the panel's
+                          // lightest gradient stop (#4a4a4a), passes AA
+
+$font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
+
+/* ── Panel shell ─────────────────────────────────────────────────────────── */
+.panel {
+  font-family: $font-stack;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.13), 0 0.3px 0.9px rgba(0, 0, 0, 0.11);
+  min-width: 280px;
+  box-sizing: border-box;
+
+  * { box-sizing: border-box; }
+}
+
+.header {
+  background: $panel-header-bg;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headerIcon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.headerTitle {
+  font-size: 17px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.body {
+  background: $panel-gradient;
+}
+
+/* ── Title block (§3) ────────────────────────────────────────────────────── */
+.titleBlock {
+  padding: 16px;
+  border-bottom: 1px solid $divider-strong;
+}
+
+.breadcrumb {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: $text-accent;
+  margin-bottom: 4px;
+}
+
+.stepTitle {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: $text-primary;
+  margin: 0;
+}
+
+/* ── Sections ────────────────────────────────────────────────────────────── */
+.section {
+  padding: 16px;
+  border-bottom: 1px solid $divider;
+
+  &:last-child { border-bottom: none; }
+}
+
+.sectionLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: $section-label-color;
+  margin-bottom: 8px;
+
+  &::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: $section-label-color;
+  }
+}
+
+.purpose {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: $text-body;
+  margin: 0;
+}
+
+.list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  li {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+    color: $text-body;
+  }
+}
+
+/* ── L4 accordion (§4.3) ─────────────────────────────────────────────────── */
+/* No horizontal padding here: each row supplies its own 16px so an expanded
+   row's OUTPUTS label lines up with the PURPOSE and INPUTS labels above. */
+.l4Block {
+  padding: 16px 0;
+  border-bottom: 1px solid $divider;
+
+  &:last-child { border-bottom: none; }
+}
+
+.l4Row {
+  border-top: 1px solid $divider;
+}
+
+.l4Header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+
+  &:hover { background: rgba(255, 255, 255, 0.06); }
+
+  &:focus-visible {
+    outline: 2px solid $text-accent;
+    outline-offset: -2px;
+  }
+}
+
+.l4HeaderOpen {
+  background: $row-hover-open;
+
+  &:hover { background: $row-hover-open; }
+}
+
+.l4Badge {
+  flex: 0 0 auto;
+  background: $l4-badge-bg;
+  color: $l4-badge-text;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+
+.l4Name {
+  flex: 1 1 auto;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: $l4-name-color;
+}
+
+.chevron {
+  flex: 0 0 auto;
+  font-size: 14px;
+  color: $text-muted;
+  line-height: 1;
+  transform: rotate(180deg);
+  transition: transform 0.15s;
+}
+
+.chevronOpen {
+  transform: rotate(0deg);
+}
+
+.l4Body {
+  padding: 4px 16px 14px;
+}
+
+/* ── Output artefact icons ───────────────────────────────────────────────── */
+/* Logos come from the System Master list at arbitrary aspect ratios, so the
+   height is pinned and the width follows — a fixed-size box would letterbox
+   the wide marks (SAP) or stretch the square ones (Word, Excel). */
+.outputIcon {
+  display: inline-block;
+  margin-left: 7px;
+  vertical-align: -3px;
+  line-height: 0;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid $text-accent;
+    outline-offset: 2px;
+  }
+}
+
+/* Tagged with a system but no URL recorded. Rendered at full strength, exactly
+   like a linked one: on this near-black panel any dimming — opacity or
+   grayscale — reads as "the logo is too dark" rather than "this isn't
+   clickable". The cursor carries that distinction instead, and costs nothing
+   visually. */
+.outputIconDisabled {
+  cursor: default;
+}
+
+.outputLogo {
+  height: 16px;
+  width: auto;
+  max-width: 48px;
+  display: inline-block;
+}
+
+/* ── Empty state (§4.1) ──────────────────────────────────────────────────── */
+.empty {
+  padding: 32px 20px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 32px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.emptyHeading {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 6px;
+}
+
+.emptyBody {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: $text-muted;
+}
+
+/* ── Loading state (§8) ──────────────────────────────────────────────────── */
+.loading {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shimmer {
+  height: 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.shimmerA { width: 60%; }
+.shimmerB { width: 90%; }
+.shimmerC { width: 75%; }
+
+/* ── Error state ─────────────────────────────────────────────────────────── */
+/* Shares the .empty block — same centred layout, same type scale. */
+.retryBtn {
+  margin-top: 14px;
+  background: $badge-bg;
+  color: #fff;
+  font-family: $font-stack;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 4px;
+  height: 34px;
+  padding: 0 18px;
+  cursor: pointer;
+
+  &:hover { background: #0e5fa6; }
+
+  &:focus-visible {
+    outline: 2px solid $text-accent;
+    outline-offset: 2px;
+  }
+}
+
+/* ── Diagnostics ─────────────────────────────────────────────────────────── */
+/* Deliberately utilitarian — this is a troubleshooting readout for a page
+   author, not part of the reading experience. */
+.diagnostics {
+  border-top: 2px solid $divider-strong;
+  padding: 16px;
+  font-size: 11px;
+  color: $text-muted;
+  overflow-x: auto;
+}
+
+.diagHeading {
+  font-size: 13px;
+  font-weight: 700;
+  color: $text-primary;
+  margin-bottom: 10px;
+}
+
+.diagSubheading {
+  font-weight: 700;
+  color: $text-body;
+  margin-bottom: 4px;
+}
+
+.diagBlock { margin-bottom: 12px; }
+
+.diagWarn {
+  background: rgba(255, 170, 0, 0.15);
+  border-left: 3px solid #ffaa00;
+  padding: 6px 8px;
+  margin-bottom: 12px;
+  color: #ffd591;
+}
+
+.diagEmpty { font-style: italic; }
+
+.diagTable {
+  border-collapse: collapse;
+  width: 100%;
+
+  td {
+    padding: 2px 8px 2px 0;
+    vertical-align: top;
+    border-bottom: 1px solid $divider;
+  }
+
+  code { color: $text-accent; word-break: break-all; }
+}
+
+.diagList {
+  margin: 0;
+  padding-left: 16px;
+
+  li { margin-bottom: 4px; }
+}
+
+.diagQuery {
+  display: block;
+  color: $text-accent;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+/* ── Motion preferences ──────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .chevron { transition: none; }
+}

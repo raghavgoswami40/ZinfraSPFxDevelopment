@@ -27,4 +27,12 @@ export interface IVerticalFlowProps {
   phases: StoredPhase[];
   isEditMode: boolean;
   onPhasesChange: (phases: StoredPhase[]) => void;
+
+  // ── Selection (optional, so the component still works unwired) ──────────
+  /** Id of the currently selected step. Owned by the web part class rather than
+   *  React state, because getPropertyValue() has to read it synchronously. */
+  selectedStepId?: string;
+  /** Fired on click, Enter or Space on a selectable step in display mode.
+   *  Supplying this is what makes steps interactive at all. */
+  onStepSelect?: (stepId: string) => void;
 }

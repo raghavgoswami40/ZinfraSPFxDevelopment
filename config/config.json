@@ -9,6 +9,14 @@
           "manifest": "./src/webparts/verticalFlow/VerticalFlowWebPart.manifest.json"
         }
       ]
+    },
+    "process-details-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/processDetails/ProcessDetailsWebPart.js",
+          "manifest": "./src/webparts/processDetails/ProcessDetailsWebPart.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import styles from './VerticalFlow.module.scss';
 import { IVerticalFlowProps, StoredSection, StoredStep } from './IVerticalFlowProps';
+import { StepShape, getShape, buildCodeMap } from '../stepSelection';
 
 const BOX_H      = 70;
 const APPROVAL_H = 46; // Client Approval pills sit shorter than the other shapes
@@ -9,12 +10,9 @@ const SAP_W      = 78; // ...and are narrower than a full column, capped by boxW
 const GAP        = 8;
 const ROW_GAP    = 22; // between wrapped rows — leaves room for the code badges above each step
 const MIN_COLS   = 5;  // floor, so a flow with only a few shapes doesn't get absurdly wide boxes
+const MAX_COLS   = 8;  // hard cap of shapes per row — anything beyond wraps to the next row
 
 const uid = (prefix: string): string => `${prefix}_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
-
-type StepShape = NonNullable<StoredStep['shape']>;
-
-const getShape = (step: StoredStep): StepShape => step.shape || 'box';
 
 // Per-shape metadata used by the add-step picker and the aria-label suffix.
 const SHAPE_META: Record<StepShape, { menuLabel: string; defaultLabel: string; previewClass: string; announce: string }> = {
@@ -25,11 +23,12 @@ const SHAPE_META: Record<StepShape, { menuLabel: string; defaultLabel: string; p
   group:     { menuLabel: 'Dashed group',     defaultLabel: 'Group title',     previewClass: 'previewGroup',     announce: ' — Group' },
 };
 
-// How many grid columns each shape occupies. The dashed group holds nested
-// steps side by side, so it needs the width of two normal boxes.
-const COL_SPAN: Record<StepShape, number> = { box: 1, approval: 1, sapStatus: 1, gate: 1, group: 2 };
-
-const getSpan = (step: StoredStep): number => COL_SPAN[getShape(step)];
+// Column units a shape occupies. Every shape is one column except a dashed
+// group, which is as wide as the steps nested inside it — so a section's total
+// span equals the number of shapes actually visible in it. An empty group still
+// claims two columns so there is room for its add-step controls.
+const getSpan = (step: StoredStep): number =>
+  getShape(step) === 'group' ? Math.max(2, (step.children || []).length) : 1;
 
 // Column units a section needs to lay its steps out on a single row.
 const sectionSpan = (section: StoredSection): number =>
@@ -56,51 +55,24 @@ const packRows = (steps: StoredStep[], maxCols: number): StoredStep[][] => {
   return rows.length > 0 ? rows : [[]];
 };
 
-// A section numbers its steps "<prefix>.1", "<prefix>.2", ... The prefix is
-// taken from codePrefix, or derived from a title that starts with the number.
-const getCodePrefix = (section: StoredSection): string | undefined => {
-  if (section.codePrefix) return section.codePrefix;
-  const first = (section.title || '').trim().split(/[\s\n]+/)[0];
-  return /^\d+(\.\d+)*$/.test(first) ? first : undefined;
-};
-
-// Codes run in display order across every step that carries a badge. Gate
-// diamonds are never numbered, and a dashed group passes its number on to the
-// steps nested inside it rather than taking one itself.
-const buildCodeMap = (section: StoredSection): Map<string, string> => {
-  const map = new Map<string, string>();
-  const prefix = getCodePrefix(section);
-  if (!prefix) return map;
-  let n = 0;
-  const visit = (steps: StoredStep[]): void => {
-    steps.forEach(step => {
-      const shape = getShape(step);
-      if (shape === 'gate') return;
-      if (shape === 'group') { visit(step.children || []); return; }
-      n += 1;
-      map.set(step.id, `${prefix}.${n}`);
-    });
-  };
-  visit(section.steps);
-  return map;
-};
-
 type EditTarget = { id: string; type: 'step' | 'section' | 'phase' };
 
-const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhasesChange }) => {
+const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhasesChange, selectedStepId, onStepSelect }) => {
   const [editing, setEditing]     = React.useState<EditTarget | null>(null);
   const [editValue, setEditValue] = React.useState('');
 
-  // One column count for the whole flow — the widest section's span — so every
-  // section lays out on a single row, and every shape and gap is the same size
-  // in every section rather than varying with how many steps a section holds.
+  // One column count for the whole flow, so every shape and gap is the same
+  // size in every section rather than varying with how many steps a section
+  // holds. Sized to the widest section so it fits on one row, but capped at
+  // MAX_COLS — a section with more shapes than that wraps instead of shrinking
+  // every box in the flow to fit.
   const maxCols = React.useMemo(() => {
     let max = MIN_COLS;
     phases.forEach(ph => ph.sections.forEach(sec => {
       const span = sectionSpan(sec);
       if (span > max) max = span;
     }));
-    return max;
+    return Math.min(MAX_COLS, max);
   }, [phases]);
 
   // Measured box width — computed from the first section's content area so that
@@ -149,12 +121,12 @@ const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhas
   // Step sizing. Shape geometry (pill/hexagon/diamond) is drawn by a clipped
   // ::before background layer in CSS, so these elements stay unclipped and can
   // carry badges that sit outside the shape's own outline.
-  const getStepStyle = (shape: StepShape): React.CSSProperties => {
-    // The dashed group spans two columns and is taller than one row (title plus
-    // full-size nested steps), so let its content define the height.
+  const getStepStyle = (shape: StepShape, span: number = 1): React.CSSProperties => {
+    // The dashed group spans a column per nested step and is taller than one row
+    // (title plus full-size nested steps), so let its content define the height.
     if (shape === 'group') {
       return {
-        gridColumn: 'span 2',
+        gridColumn: `span ${span}`,
         position: 'relative',
         overflow: 'visible',
         alignSelf: 'center',
@@ -168,11 +140,11 @@ const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhas
       justifySelf: 'center', // keeps the narrower hexagon centred in its boxW column
       flexShrink: 0,
     };
-    // Box steps carry the long labels, so they are only floored at BOX_H and
-    // grow to fit their text; stretching makes every box in a row match the
-    // tallest. The fixed-geometry shapes keep their exact size and centre.
+    // Box steps are floored at BOX_H and grow only for their OWN long labels.
+    // They deliberately do not stretch to the row: a dashed group makes its row
+    // taller than BOX_H, and stretching would resize every box beside it.
     if (shape === 'box') {
-      return { ...base, minHeight: BOX_H, alignSelf: 'stretch' };
+      return { ...base, minHeight: BOX_H, alignSelf: 'center' };
     }
     const h = shape === 'approval' ? APPROVAL_H : shape === 'sapStatus' ? SAP_H : BOX_H;
     return { ...base, height: h, minHeight: h, maxHeight: h, alignSelf: 'center' };
@@ -239,13 +211,11 @@ const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhas
   // ── Step actions ──────────────────────────────────────────────────────
   const addStep = (phaseId: string, sectionId: string, shape: StepShape = 'box'): void => {
     const id = uid(`${sectionId}_step`);
-    const newStep: StoredStep = { id, label: SHAPE_META[shape].defaultLabel, shape };
-    if (shape === 'group') {
-      newStep.children = [
-        { id: `${id}_c1`, label: 'STAT', shape: 'sapStatus' },
-        { id: `${id}_c2`, label: 'STAT', shape: 'sapStatus' },
-      ];
-    }
+    // A new dashed group starts empty — its contents are added from the
+    // group's own controls, so the author isn't left deleting placeholders.
+    const newStep: StoredStep = shape === 'group'
+      ? { id, label: SHAPE_META[shape].defaultLabel, shape, children: [] }
+      : { id, label: SHAPE_META[shape].defaultLabel, shape };
     onPhasesChange(phases.map(ph =>
       ph.id !== phaseId ? ph : {
         ...ph,
@@ -255,6 +225,25 @@ const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhas
       }
     ));
     setAddMenuSectionId(null);
+  };
+
+  // Append a step inside a dashed group. Groups cannot nest, so 'group' is not
+  // offered as a choice here.
+  const addChildStep = (phaseId: string, sectionId: string, groupId: string, shape: StepShape): void => {
+    const child: StoredStep = { id: uid(`${groupId}_child`), label: SHAPE_META[shape].defaultLabel, shape };
+    onPhasesChange(phases.map(ph =>
+      ph.id !== phaseId ? ph : {
+        ...ph,
+        sections: ph.sections.map(sec =>
+          sec.id !== sectionId ? sec : {
+            ...sec,
+            steps: sec.steps.map(st =>
+              st.id !== groupId ? st : { ...st, children: [...(st.children || []), child] }
+            ),
+          }
+        ),
+      }
+    ));
   };
 
   // Recurses so a step nested inside a dashed group can be removed too.
@@ -314,35 +303,108 @@ const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhas
     );
   };
 
+  // ── Selection ─────────────────────────────────────────────────────────
+  // Only plain rectangles carry process details, so only they are selectable.
+  // Display mode only: in edit mode the label span already owns the click, and
+  // for a step nested in a dashed group the two would both fire on one click.
+  const isSelectable = (step: StoredStep): boolean =>
+    !isEditMode && !!onStepSelect && getShape(step) === 'box';
+
+  // role="button" rather than a real <button>: .step centres its content with
+  // flex and the non-rectangular shapes paint their fill through a clipped
+  // ::before layer, both of which a UA button background fights.
+  const selectionProps = (step: StoredStep): React.HTMLAttributes<HTMLDivElement> => {
+    if (!isSelectable(step)) return {};
+    const select = (): void => { if (onStepSelect) onStepSelect(step.id); };
+    return {
+      role: 'button',
+      tabIndex: 0,
+      'aria-pressed': selectedStepId === step.id,
+      title: 'Show details for this step',
+      onClick: select,
+      onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+          e.preventDefault(); // Space would otherwise scroll the page
+          select();
+        }
+      },
+    };
+  };
+
+  const selectedCls = (step: StoredStep): string =>
+    selectedStepId === step.id ? ' ' + styles.stepSelected : '';
+
+  const selectableCls = (step: StoredStep): string =>
+    isSelectable(step) ? ' ' + styles.stepClickable : '';
+
   // ── Render dashed group ───────────────────────────────────────────────
   // A dashed container with its own title and full-size nested steps inside it.
-  const renderGroup = (step: StoredStep, phaseId: string, sectionId: string, codes: Map<string, string>): JSX.Element => (
-    <div key={step.id} className={styles.shapeGroup} style={getStepStyle('group')}>
-      {renderEditableText(step, styles.groupTitle, 'Click to edit group title', styles.groupTitleEditor)}
-      <div className={styles.groupChildren}>
-        {(step.children || []).map(child => (
-          <div
-            key={child.id}
-            className={`${styles.step} ${styles.shapeSapStatus}`}
-            style={{ width: sapW, height: SAP_H, flexShrink: 0, position: 'relative', overflow: 'visible' }}
-          >
-            {codes.get(child.id) && <span className={styles.stepCodeBadge}>{codes.get(child.id)}</span>}
-            {renderStepContent(child, 'Click to edit status')}
-            {isEditMode && (
-              <button
-                className={styles.removeBtnSmall}
-                title="Remove from group"
-                onClick={() => removeStep(phaseId, sectionId, child.id)}
-              >×</button>
-            )}
+  const renderGroup = (step: StoredStep, phaseId: string, sectionId: string, codes: Map<string, string>): JSX.Element => {
+    const children = step.children || [];
+    return (
+      <div key={step.id} className={styles.shapeGroup} style={getStepStyle('group', getSpan(step))}>
+        {renderEditableText(step, styles.groupTitle, 'Click to edit group title', styles.groupTitleEditor)}
+
+        {children.length > 0 && (
+          <div className={styles.groupChildren}>
+            {children.map(child => {
+              const cShape = getShape(child);
+              const cls = [
+                styles.step,
+                cShape === 'approval'  ? styles.shapeApproval  : '',
+                cShape === 'sapStatus' ? styles.shapeSapStatus : '',
+                cShape === 'gate'      ? styles.shapeGate      : '',
+              ].filter(Boolean).join(' ');
+              const h = cShape === 'approval' ? APPROVAL_H : cShape === 'sapStatus' ? SAP_H : BOX_H;
+              // Nested steps take the same widths as steps anywhere else — the
+              // group spans one column per child, so boxW lines them up exactly.
+              // flexShrink absorbs the few px the dashed border occupies.
+              const wStyle: React.CSSProperties = cShape === 'sapStatus'
+                ? { width: sapW, flexShrink: 0 }
+                : { width: boxW, flexShrink: 1, minWidth: 0 };
+              return (
+                <div
+                  key={child.id}
+                  className={`${cls}${selectableCls(child)}${selectedCls(child)}`}
+                  style={{ ...wStyle, height: h, position: 'relative', overflow: 'visible' }}
+                  {...selectionProps(child)}
+                >
+                  {codes.get(child.id) && <span className={styles.stepCodeBadge}>{codes.get(child.id)}</span>}
+                  {renderStepContent(child, 'Click to edit label')}
+                  {isEditMode && (
+                    <button
+                      className={styles.removeBtnSmall}
+                      title="Remove from group"
+                      onClick={() => removeStep(phaseId, sectionId, child.id)}
+                    >×</button>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        ))}
+        )}
+
+        {/* Add a step inside the group. Groups cannot nest, so the dashed
+            group option is deliberately absent here. */}
+        {isEditMode && (
+          <div className={styles.groupAdd}>
+            {(Object.keys(SHAPE_META) as StepShape[]).filter(s => s !== 'group').map(s => (
+              <button
+                key={s}
+                className={`${styles.groupAddBtn} ${(styles as Record<string, string>)[SHAPE_META[s].previewClass]}`}
+                title={`Add ${SHAPE_META[s].menuLabel} to this group`}
+                onClick={() => addChildStep(phaseId, sectionId, step.id, s)}
+              />
+            ))}
+          </div>
+        )}
+
+        {isEditMode && (
+          <button className={styles.removeBtn} title="Remove group" onClick={() => removeStep(phaseId, sectionId, step.id)}>×</button>
+        )}
       </div>
-      {isEditMode && (
-        <button className={styles.removeBtn} title="Remove group" onClick={() => removeStep(phaseId, sectionId, step.id)}>×</button>
-      )}
-    </div>
-  );
+    );
+  };
 
   // ── Render step ───────────────────────────────────────────────────────
   const renderStep = (step: StoredStep, phaseId: string, sectionId: string, codes: Map<string, string>): JSX.Element => {
@@ -374,9 +436,10 @@ const VerticalFlow: React.FC<IVerticalFlowProps> = ({ phases, isEditMode, onPhas
     return (
       <div
         key={step.id}
-        className={cls}
+        className={`${cls}${selectableCls(step)}${selectedCls(step)}`}
         style={getStepStyle(shape)}
         aria-label={`${code ? code + ' — ' : ''}${step.label}${SHAPE_META[shape].announce}`}
+        {...selectionProps(step)}
       >
         {codeBadge}
         {sapPrefix && <span className={styles.sapPrefix}>SAP Status</span>}

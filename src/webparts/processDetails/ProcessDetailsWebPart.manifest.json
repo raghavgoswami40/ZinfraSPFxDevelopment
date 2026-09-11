@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/client-side-building-blocks/webpart-manifest.schema.json",
+  "id": "7adf9e52-9cf5-4951-adbf-b3bf8ab2dab5",
+  "alias": "ProcessDetailsWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": [
+    "SharePointWebPart"
+  ],
+  "supportsThemeVariants": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+      "group": {
+        "default": "Other"
+      },
+      "title": {
+        "default": "Process Details"
+      },
+      "description": {
+        "default": "Purpose, inputs, sub-processes and outputs for the selected process step"
+      },
+      "officeFabricIconFontName": "DocumentSet",
+      "properties": {
+        "title": "Process details",
+        "headerIcon": "🧾",
+        "showBreadcrumb": true,
+        "singleOpenSubStep": true,
+        "showSampleData": false,
+        "showDiagnostics": false,
+        "processListTitle": "Process Details",
+        "systemListTitle": "Systems Master",
+        "stickyPanel": true,
+        "stickyTopOffset": 90
+      }
+    }
+  ]
+}
