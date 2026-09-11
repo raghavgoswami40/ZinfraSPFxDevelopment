@@ -638,8 +638,12 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
                 }),
                 PropertyPaneSlider('stickyTopOffset', {
                   label: 'Offset from top of page',
+                  // Needs to reach well past 200: on a published page
+                  // SharePoint's own sticky chrome (suite bar, site header,
+                  // command bar) lives inside the scrolling region and can
+                  // occupy ~300px, which the pinned panel has to clear.
                   min: 0,
-                  max: 200,
+                  max: 400,
                   step: 5,
                   disabled: this.properties.stickyPanel === false,
                 }),
