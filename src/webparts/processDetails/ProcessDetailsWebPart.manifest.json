@@ -33,7 +33,10 @@
         "processListTitle": "Process Details",
         "systemListTitle": "Systems Master",
         "stickyPanel": true,
-        "stickyTopOffset": 90
+        "stickyTopOffset": 90,
+        "emptyIcon": "👈",
+        "emptyHeading": "Select a process to view details",
+        "emptyBody": "Click on any process in the process hierarchy to see its inputs, procedure and outputs here."
       }
     }
   ]

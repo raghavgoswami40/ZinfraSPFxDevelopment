@@ -46,12 +46,18 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   * { box-sizing: border-box; }
 }
 
+/* A solid border, not the translucent $divider used elsewhere: the header and
+   the gradient body both start at #000, so with no explicit line the seam
+   between them is literally invisible. Blue to match the accent already used
+   for the section labels below (and Vertical Flow's own $blue), rather than
+   introducing a third accent colour into the panel. */
 .header {
   background: $panel-header-bg;
   padding: 14px 16px;
   display: flex;
   align-items: center;
   gap: 10px;
+  border-bottom: 2px solid $section-label-color;
 }
 
 .headerIcon {

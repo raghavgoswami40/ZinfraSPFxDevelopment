@@ -6,6 +6,10 @@ import {
 
 const DEFAULT_TITLE = 'Process details';
 const DEFAULT_ICON  = '🧾';
+const DEFAULT_EMPTY_ICON    = '👈';
+const DEFAULT_EMPTY_HEADING = 'Select a process to view details';
+const DEFAULT_EMPTY_BODY    =
+  'Click on any process in the process hierarchy to see its inputs, procedure and outputs here.';
 
 // Ids must be unique per web part instance (two panels can share a page) and
 // safe for an HTML id, so codes like "2.1.3.1" lose their dots.
@@ -169,6 +173,9 @@ const ProcessDetails: React.FC<IProcessDetailsProps> = (props) => {
     headerIcon = DEFAULT_ICON,
     showBreadcrumb = true,
     singleOpenSubStep = true,
+    emptyIcon = DEFAULT_EMPTY_ICON,
+    emptyHeading = DEFAULT_EMPTY_HEADING,
+    emptyBody = DEFAULT_EMPTY_BODY,
     diagnostics,
   } = props;
 
@@ -265,12 +272,9 @@ const ProcessDetails: React.FC<IProcessDetailsProps> = (props) => {
         </div>
       ) : (
         <div className={styles.empty}>
-          <div className={styles.emptyIcon} aria-hidden="true">👈</div>
-          <div className={styles.emptyHeading}>Select a process to view details</div>
-          <div className={styles.emptyBody}>
-            Click on any process in the process hierarchy to see its inputs, procedure
-            and outputs here.
-          </div>
+          <div className={styles.emptyIcon} aria-hidden="true">{emptyIcon}</div>
+          <div className={styles.emptyHeading}>{emptyHeading}</div>
+          <div className={styles.emptyBody}>{emptyBody}</div>
         </div>
       );
     }

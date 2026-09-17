@@ -3,15 +3,18 @@ import * as ReactDom from 'react-dom';
 import { Version, Guid, DisplayMode } from '@microsoft/sp-core-library';
 import {
   IPropertyPaneConfiguration,
+  IPropertyPaneDropdownOption,
   PropertyPaneTextField,
   PropertyPaneToggle,
   PropertyPaneSlider,
+  PropertyPaneDropdown,
   PropertyPaneDynamicFieldSet,
   PropertyPaneDynamicField,
   DynamicDataSharedDepth,
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart, IWebPartPropertiesMetadata } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme, DynamicProperty } from '@microsoft/sp-component-base';
+import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 
 import ProcessDetails from './components/ProcessDetails';
 import {
@@ -27,6 +30,11 @@ export interface IProcessDetailsWebPartProps {
   title: string;
   headerIcon: string;
   showBreadcrumb: boolean;
+
+  // ── Unselected state (shown before anything is clicked in the hierarchy) ──
+  emptyIcon: string;
+  emptyHeading: string;
+  emptyBody: string;
 
   // The three below are deliberately not exposed in the property pane — they
   // are fixed behaviour and developer tooling, not authoring choices. They
@@ -100,6 +108,85 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
       this._applySticky();
     });
   };
+
+  // ── List picker for the property pane ────────────────────────────────────
+  // Populated once per web part instance (not once per pane-open — a second
+  // open reuses the same result) so choosing between the Process Details and
+  // Systems Master lists is a dropdown of what actually exists on this site,
+  // rather than a text field an author has to get exactly right by hand.
+  private _listOptions: IPropertyPaneDropdownOption[] | undefined = undefined;
+  private _listsPromise: Promise<IPropertyPaneDropdownOption[]> | undefined = undefined;
+  // Set once a fetch has failed, so the pane falls back to plain text fields
+  // rather than leaving the author stuck with a dropdown that can never
+  // offer anything but whatever value is already saved.
+  private _listsFetchFailed = false;
+
+  private _loadLists(): Promise<IPropertyPaneDropdownOption[]> {
+    if (this._listsPromise) { return this._listsPromise; }
+
+    // BaseTemplate 100 is a generic custom list — the kind Process Details and
+    // Systems Master both are. Filtering to that (and out hidden lists) keeps
+    // document libraries, calendars and SharePoint's own system lists out of
+    // an author's way.
+    const url =
+      `${this.context.pageContext.web.absoluteUrl}/_api/web/lists` +
+      `?$select=Title&$filter=Hidden eq false and BaseTemplate eq 100&$orderby=Title&$top=500`;
+
+    this._listsPromise = this.context.spHttpClient.get(url, SPHttpClient.configurations.v1)
+      .then((response: SPHttpClientResponse) => {
+        if (!response.ok) { throw new Error(`HTTP ${response.status}`); }
+        return response.json();
+      })
+      .then((body: { value: Array<{ Title: string }> }) =>
+        body.value.map((l) => ({ key: l.Title, text: l.Title }))
+      )
+      .catch((err) => {
+        console.warn(
+          '[Process Details] Could not read this site\'s lists for the property pane picker ' +
+          '— falling back to plain text fields:',
+          err
+        );
+        this._listsFetchFailed = true;
+        this._listsPromise = undefined; // let a later pane-open retry
+        return [];
+      });
+
+    return this._listsPromise;
+  }
+
+  /**
+   * Options for one of the two list dropdowns. Always includes the currently
+   * configured value even if the live fetch hasn't returned it — either
+   * because it is still loading, or because the saved list was renamed,
+   * deleted, or isn't a plain generic list (so the fetch legitimately
+   * excludes it) — so the author's existing choice is never silently dropped
+   * from the control.
+   */
+  private _listDropdownOptions(current: string, fallback: string): IPropertyPaneDropdownOption[] {
+    const value = current || fallback;
+    const loaded = this._listOptions;
+
+    if (!loaded) {
+      return [{ key: value, text: `${value} (loading site lists…)` }];
+    }
+    if (loaded.some((o) => o.key === value)) { return loaded; }
+    return [{ key: value, text: `${value} (not found on this site)` }, ...loaded];
+  }
+
+  // Fired every time the property pane is opened. Kicks off the list fetch
+  // once per instance; context.propertyPane.refresh() repaints the pane with
+  // real options once it resolves, rather than a placeholder.
+  protected onPropertyPaneConfigurationStart(): void {
+    if (this._listOptions || this._listsFetchFailed) { return; }
+    // _loadLists() already swallows its own rejections (see its .catch), so
+    // this .catch() is just to satisfy no-floating-promises — it can't fire.
+    this._loadLists()
+      .then((options) => {
+        if (options.length > 0) { this._listOptions = options; }
+        this.context.propertyPane.refresh();
+      })
+      .catch(() => { /* unreachable — _loadLists() never rejects */ });
+  }
 
   protected onInit(): Promise<void> {
     // Deserialization runs before onInit, so if a connection was saved the
@@ -536,6 +623,9 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
         headerIcon:        this.properties.headerIcon,
         showBreadcrumb:    this.properties.showBreadcrumb !== false,
         singleOpenSubStep: this.properties.singleOpenSubStep !== false,
+        emptyIcon:         this.properties.emptyIcon,
+        emptyHeading:      this.properties.emptyHeading,
+        emptyBody:         this.properties.emptyBody,
         diagnostics:       this._diagnostics(),
       }
     );
@@ -607,16 +697,33 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
             },
             {
               groupName: 'Lists',
-              groupFields: [
-                PropertyPaneTextField('processListTitle', {
-                  label: 'Process details list',
-                  placeholder: DEFAULT_PROCESS_LIST,
-                }),
-                PropertyPaneTextField('systemListTitle', {
-                  label: 'System master list',
-                  placeholder: DEFAULT_SYSTEM_LIST,
-                }),
-              ],
+              groupFields: this._listsFetchFailed
+                ? [
+                  PropertyPaneTextField('processListTitle', {
+                    label: 'Process details list',
+                    description: 'Couldn\'t read this site\'s lists automatically — type the list name.',
+                    placeholder: DEFAULT_PROCESS_LIST,
+                  }),
+                  PropertyPaneTextField('systemListTitle', {
+                    label: 'System master list',
+                    description: 'Couldn\'t read this site\'s lists automatically — type the list name.',
+                    placeholder: DEFAULT_SYSTEM_LIST,
+                  }),
+                ]
+                : [
+                  PropertyPaneDropdown('processListTitle', {
+                    label: 'Process details list',
+                    options: this._listDropdownOptions(this.properties.processListTitle, DEFAULT_PROCESS_LIST),
+                    selectedKey: this.properties.processListTitle || DEFAULT_PROCESS_LIST,
+                    disabled: !this._listOptions,
+                  }),
+                  PropertyPaneDropdown('systemListTitle', {
+                    label: 'System master list',
+                    options: this._listDropdownOptions(this.properties.systemListTitle, DEFAULT_SYSTEM_LIST),
+                    selectedKey: this.properties.systemListTitle || DEFAULT_SYSTEM_LIST,
+                    disabled: !this._listOptions,
+                  }),
+                ],
             },
             {
               groupName: 'Appearance',
@@ -632,6 +739,22 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
                 }),
                 PropertyPaneToggle('showBreadcrumb', {
                   label: 'Show step number and breadcrumb',
+                }),
+                PropertyPaneTextField('emptyIcon', {
+                  label: 'Unselected-state icon',
+                  description: 'Shown above the message when nothing is selected yet.',
+                  placeholder: '👈',
+                }),
+                PropertyPaneTextField('emptyHeading', {
+                  label: 'Unselected-state heading',
+                  placeholder: 'Select a process to view details',
+                }),
+                PropertyPaneTextField('emptyBody', {
+                  label: 'Unselected-state message',
+                  multiline: true,
+                  resizable: true,
+                  placeholder:
+                    'Click on any process in the process hierarchy to see its inputs, procedure and outputs here.',
                 }),
                 PropertyPaneToggle('stickyPanel', {
                   label: 'Keep panel in view while scrolling',

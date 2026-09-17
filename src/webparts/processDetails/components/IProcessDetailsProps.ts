@@ -85,6 +85,15 @@ export interface IProcessDetailsProps {
   showBreadcrumb?: boolean;   // default true
   singleOpenSubStep?: boolean;// default true — false allows multiple open rows
 
+  // ── Unselected ("nothing picked yet") state, also property-pane driven ───
+  /** Emoji/glyph shown above the heading. Default "👈". */
+  emptyIcon?: string;
+  /** Default "Select a process to view details". */
+  emptyHeading?: string;
+  /** Default "Click on any process in the process hierarchy to see its
+   *  inputs, procedure and outputs here." */
+  emptyBody?: string;
+
   /** Renders the resolved field names and system map below the panel body. */
   diagnostics?: IDiagnosticsView;
 }
