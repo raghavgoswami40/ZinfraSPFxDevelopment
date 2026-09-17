@@ -1,6 +1,9 @@
 /* ── Design tokens (§2) ──────────────────────────────────────────────────── */
-$panel-header-bg: #000000;
-$panel-gradient:  linear-gradient(to bottom, #000 0%, #1b1b1b 35%, #333 70%, #4a4a4a 100%);
+$panel-header-bg: #1c1c1c; // matches Vertical Flow's $dark (its phase-header banner)
+// First stop matches $panel-header-bg exactly (was #000, darker than the header
+// above it, so the header read as visibly lighter than the sliver of body right
+// beneath it) — now the seam is clean rather than a lightness jump.
+$panel-gradient:  linear-gradient(to bottom, #1c1c1c 0%, #1b1b1b 35%, #333 70%, #4a4a4a 100%);
 
 $text-primary:    #ffffff;
 $text-body:       #ffffff; // same as $text-primary today; kept separate so body
@@ -46,18 +49,15 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   * { box-sizing: border-box; }
 }
 
-/* A solid border, not the translucent $divider used elsewhere: the header and
-   the gradient body both start at #000, so with no explicit line the seam
-   between them is literally invisible. Blue to match the accent already used
-   for the section labels below (and Vertical Flow's own $blue), rather than
-   introducing a third accent colour into the panel. */
+/* Vertical padding matched to Vertical Flow's phaseHeader (10px 18px, 17px
+   text) so the two banners are the same height — font-size stayed the same,
+   only the padding needed to change. */
 .header {
   background: $panel-header-bg;
-  padding: 14px 16px;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
   gap: 10px;
-  border-bottom: 2px solid $section-label-color;
 }
 
 .headerIcon {
@@ -90,7 +90,7 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 }
 
 .stepTitle {
-  font-size: 19px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.2;
   color: $text-primary;
@@ -100,16 +100,13 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 /* ── Sections ────────────────────────────────────────────────────────────── */
 .section {
   padding: 16px;
-  border-bottom: 1px solid $divider;
-
-  &:last-child { border-bottom: none; }
 }
 
 .sectionLabel {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   color: $section-label-color;
@@ -126,7 +123,7 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 }
 
 .purpose {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   line-height: 1.5;
   color: $text-body;
@@ -141,7 +138,7 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   gap: 6px;
 
   li {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     line-height: 1.45;
     color: $text-body;
@@ -158,8 +155,23 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   &:last-child { border-bottom: none; }
 }
 
+/* .sectionLabel itself has no horizontal padding — it normally relies on a
+   parent .section for that. l4Block deliberately has none (each row supplies
+   its own 16px so the row content lines up with Purpose/Inputs above), so the
+   Outputs label sitting directly inside l4Block needs its own. */
+.l4SectionLabel {
+  padding: 0 16px;
+}
+
 .l4Row {
   border-top: 1px solid $divider;
+}
+
+// The first L4 row sits directly under the Outputs label — no divider there,
+// matching Purpose/Inputs/Outputs no longer having separators between them.
+// Later rows keep their border-top, separating one L4 process from the next.
+.l4SectionLabel + .l4Row {
+  border-top: none;
 }
 
 .l4Header {
@@ -202,7 +214,7 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 
 .l4Name {
   flex: 1 1 auto;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.3;
   color: $l4-name-color;
@@ -222,7 +234,9 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 }
 
 .l4Body {
-  padding: 4px 16px 14px;
+  // Top padding widened from 4px — the output list sat almost flush against
+  // the L4 name/badge row above it.
+  padding: 10px 16px 14px;
 }
 
 /* ── Output artefact icons ───────────────────────────────────────────────── */

@@ -228,7 +228,6 @@ const ProcessDetails: React.FC<IProcessDetailsProps> = (props) => {
 
         {isOpen && (
           <div className={styles.l4Body} id={panelId} role="region" aria-labelledby={btnId}>
-            <div className={styles.sectionLabel}>Outputs</div>
             <OutputList items={sub.outputs} />
           </div>
         )}
@@ -309,10 +308,12 @@ const ProcessDetails: React.FC<IProcessDetailsProps> = (props) => {
           </div>
         )}
 
-        {/* With L4 sub-steps the flat OUTPUTS section is dropped — outputs live
-            inside each expanded row instead. */}
+        {/* With L4 sub-steps, one OUTPUTS label sits above the whole accordion
+            (right after Inputs, like Purpose/Inputs above it) instead of being
+            repeated inside every expanded row. */}
         {hasSubSteps ? (
           <div className={styles.l4Block}>
+            <div className={`${styles.sectionLabel} ${styles.l4SectionLabel}`}>Outputs</div>
             {selectedStep.subSteps.map(renderSubStep)}
           </div>
         ) : (
