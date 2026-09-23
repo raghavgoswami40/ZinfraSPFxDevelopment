@@ -8,6 +8,7 @@ import {
   PropertyPaneToggle,
   PropertyPaneSlider,
   PropertyPaneDropdown,
+  PropertyPaneLabel,
   PropertyPaneDynamicFieldSet,
   PropertyPaneDynamicField,
   DynamicDataSharedDepth,
@@ -15,15 +16,18 @@ import {
 import { BaseClientSideWebPart, IWebPartPropertiesMetadata } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme, DynamicProperty } from '@microsoft/sp-component-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
+import { IDynamicDataCallables, IDynamicDataPropertyDefinition } from '@microsoft/sp-dynamic-data';
+import { StickyPanelController, findStackFollower } from '../../shared/stickyPanel';
 
 import ProcessDetails from './components/ProcessDetails';
 import {
-  IProcessDetailsProps, IProcessStep, IDiagnosticsView,
+  IProcessDetailsProps, IProcessStep,
 } from './components/IProcessDetailsProps';
 import { SAMPLE_STEP_WITH_SUBSTEPS } from './components/processDetailsData';
 import { ProcessDetailsService } from './services/ProcessDetailsService';
 import {
   ISelectedProcessStep, SELECTED_STEP_PROPERTY_ID, VERTICAL_FLOW_COMPONENT_ID,
+  IProcessFocus, PROCESS_FOCUS_PROPERTY_ID,
 } from '../../shared/dynamicData';
 
 export interface IProcessDetailsWebPartProps {
@@ -36,15 +40,19 @@ export interface IProcessDetailsWebPartProps {
   emptyHeading: string;
   emptyBody: string;
 
-  // The three below are deliberately not exposed in the property pane — they
-  // are fixed behaviour and developer tooling, not authoring choices. They
-  // still take effect, from the manifest defaults; re-add a PropertyPaneToggle
-  // for any of them to make it configurable again.
+  // The two below are deliberately not exposed in the property pane — they are
+  // fixed behaviour, not authoring choices. They still take effect, from the
+  // manifest defaults; re-add a PropertyPaneToggle for either to make it
+  // configurable again.
   /** Accordion behaviour for L4 rows. Fixed on. */
   singleOpenSubStep: boolean;
   /** Renders the worked example instead of live data. Fixed off. */
   showSampleData: boolean;
-  /** Console + in-panel report of field resolution and panel pinning. Fixed off. */
+
+  /** Console + in-panel report of field resolution and panel pinning. Off by
+   *  default, and exposed in the property pane under Troubleshooting: when the
+   *  panel pins somewhere unexpected, the console readout naming the ancestor
+   *  it anchored to is the only way to tell why from outside the page. */
   showDiagnostics: boolean;
   processListTitle: string;
   systemListTitle: string;
@@ -61,20 +69,10 @@ const DEFAULT_PROCESS_LIST = 'Process Details';
 const DEFAULT_SYSTEM_LIST = 'Systems Master';
 
 const DEFAULT_STICKY_TOP = 90;
-/** Breathing room between the pinned panel and the edge it is anchored to,
- *  applied at whichever edge is doing the anchoring. */
-const STICKY_GAP = 12;
-/** Below this the section stacks into one column, where pinning would cover
- *  the hierarchy rather than sit beside it. */
-const STICKY_MIN_WIDTH = 768;
-/** How far up the host DOM the fix-up is allowed to reach. Deliberately small:
- *  everything above this is SharePoint's own chrome, not the page canvas. */
-const STICKY_MAX_ANCESTORS = 12;
-/** An ancestor taller than the panel by at least this much is the stretched
- *  column — the chain below it now has somewhere to travel, so stop there. */
-const STICKY_TRAVEL_SLACK = 40;
 
-export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProcessDetailsWebPartProps> {
+export default class ProcessDetailsWebPart
+  extends BaseClientSideWebPart<IProcessDetailsWebPartProps>
+  implements IDynamicDataCallables {
 
   private _service: ProcessDetailsService | undefined;
   private _serviceKey = '';
@@ -86,28 +84,38 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
   private _error: string | undefined = undefined;
   private _notFound: string | undefined = undefined;
 
+  /** Last diagnostics state logged, so repaints do not spam the console. */
+  private _lastDiagKey = '';
+
   // Guards against an earlier, slower request overwriting a newer selection.
   private _requestSeq = 0;
+
+  /** Which L4 row is expanded. Lifted out of the component so it can be
+   *  published: RASCI needs the open L4, not just the selected L3. null means
+   *  every row closed, which a consumer has to tell apart from "no L3
+   *  selected". */
+  private _openSubStepCode: string | null = null;
+
+  /** Last published payload — what getPropertyValue() returns, and what
+   *  _publishFocus() compares against so a plain repaint does not notify. */
+  private _focus: IProcessFocus = { hasSubSteps: false, pending: false };
+
+  /** Set while a notify is already queued, so several state changes in one
+   *  turn collapse into a single notification. */
+  private _focusNotifyQueued = false;
 
   /** Class-property arrow, not a method: unregisterAvailableSourcesChanged
    *  matches on function reference, so .bind() at each site would never
    *  unregister. */
   private _onAvailableSourcesChanged = (): void => { this.render(); };
 
-  private _resizeRaf: number | undefined = undefined;
-  /** Last diagnostic state logged, so scroll frames do not spam the console. */
-  private _lastLogKey = '';
-
-  /** Class-property arrow for the same reason as above — removeEventListener
-   *  matches on reference. rAF-throttled because scroll and resize both fire
-   *  continuously, and each pass reads layout then writes styles. */
-  private _onViewportChange = (): void => {
-    if (this._resizeRaf !== undefined) { return; }
-    this._resizeRaf = window.requestAnimationFrame(() => {
-      this._resizeRaf = undefined;
-      this._applySticky();
-    });
-  };
+  /** Pins the panel to the viewport while the page scrolls. Nothing stacks
+   *  above this panel, so it has no anchor of its own; it does however give up
+   *  its pin for a RASCI panel stacked beneath it when the two cannot both fit
+   *  on screen — see stackFollower below. Built in onInit(), not as a field
+   *  initializer — this.domElement is not guaranteed to exist yet at
+   *  construction time. */
+  private _sticky: StickyPanelController | undefined = undefined;
 
   // ── List picker for the property pane ────────────────────────────────────
   // Populated once per web part instance (not once per pane-open — a second
@@ -200,17 +208,42 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
       );
     }
 
+    // Registered as a *source* as well as a consumer: RASCI reads the focus
+    // published here. Done before the first render so a RASCI web part that
+    // initialises after this one finds the source already in the list.
+    this.context.dynamicDataSourceManager.initializeSource(this);
+    this.context.dynamicDataSourceManager.updateMetadata({
+      title: this.properties.title || 'Process Details',
+      description:
+        'Publishes the process the reader is focused on — the selected L3, or the L4 opened within it.',
+    });
+
     // DynamicProperty copes with a source appearing late on its own, but not
     // with one disappearing — this is what repaints the empty state when the
     // hierarchy web part is removed, instead of leaving a stale step on screen.
     this.context.dynamicDataProvider.registerAvailableSourcesChanged(this._onAvailableSourcesChanged);
 
-    // A fixed panel has to be repositioned on every scroll. Capture phase is
-    // essential: the page has nested scroll containers (the section scrolls
-    // independently of the page), and scroll events from a nested container do
-    // not bubble — but they are seen on the way down.
-    document.addEventListener('scroll', this._onViewportChange, true);
-    window.addEventListener('resize', this._onViewportChange);
+    this._sticky = new StickyPanelController({
+      domElement: this.domElement,
+      stickyEnabled: () => this.properties.stickyPanel !== false,
+      isEditMode: () => this.displayMode === DisplayMode.Edit,
+      topOffset: () => (
+        typeof this.properties.stickyTopOffset === 'number'
+          ? this.properties.stickyTopOffset
+          : DEFAULT_STICKY_TOP
+      ),
+      // Yields its pin to a RASCI panel stacked beneath, but only when the two
+      // cannot both fit the visible band — holding it then would strand RASCI's
+      // lower half below the fold where page scrolling cannot reach it. This
+      // decides *whether* this panel pins, never where, so it can never lift it
+      // above the top of its own section. Undefined when no RASCI panel follows
+      // this one in the same column, which leaves behaviour exactly as it is
+      // for a Process Details panel on its own.
+      stackFollower: () => findStackFollower('rasci', this.domElement),
+      diagnosticsEnabled: () => !!this.properties.showDiagnostics,
+      logLabel: 'Process Details',
+    });
+    this._sticky.attachListeners();
 
     return super.onInit();
   }
@@ -222,6 +255,87 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
     return {
       'selection': { dynamicPropertyType: 'object' },
     };
+  }
+
+  // ── Dynamic Data source ──────────────────────────────────────────────────
+
+  public getPropertyDefinitions(): ReadonlyArray<IDynamicDataPropertyDefinition> {
+    return [
+      {
+        id: PROCESS_FOCUS_PROPERTY_ID,
+        title: 'Focused process',
+        description:
+          'The L3 selected in the hierarchy, or the L4 opened inside it when the L3 has sub-processes.',
+      },
+    ];
+  }
+
+  // Narrower than the interface's `any` on purpose — `any` is assignable both
+  // ways, so this still satisfies IDynamicDataCallables.
+  public getPropertyValue(propertyId: string): IProcessFocus | undefined {
+    if (propertyId === PROCESS_FOCUS_PROPERTY_ID) {
+      return this._focus;
+    }
+    throw new Error(`ProcessDetailsWebPart: unknown dynamic data property '${propertyId}'`);
+  }
+
+  /** The payload for the current render state. Pure — no side effects. */
+  private _computeFocus(): IProcessFocus {
+    const step = this._step;
+    const hasSubSteps = !!step && step.subSteps.length > 0;
+
+    // While the L3's row is still in flight hasSubSteps is not yet known, so
+    // consumers are told to hold rather than briefly render the L3's own RASCI
+    // for a step that will turn out to have L4 children.
+    const pending = this._loading;
+
+    const focus: IProcessFocus = {
+      l3Code: this._code,
+      l3Title: step ? step.title : undefined,
+      hasSubSteps,
+      pending,
+    };
+
+    if (hasSubSteps) {
+      const open = this._openSubStepCode
+        ? step!.subSteps.filter((sub) => sub.code === this._openSubStepCode)[0]
+        : undefined;
+      if (open) {
+        focus.l4Code = open.code;
+        focus.l4Title = open.title;
+        focus.focusCode = open.code;
+        focus.focusTitle = open.title;
+      }
+    } else if (step) {
+      // A childless L3 answers for itself.
+      focus.focusCode = step.code;
+      focus.focusTitle = step.title;
+    }
+
+    return focus;
+  }
+
+  /**
+   * Recomputes the payload and notifies consumers when it actually changed.
+   *
+   * The notify is deferred to a microtask because the main caller chain runs
+   * *inside* this web part's render(): notifying synchronously would re-enter a
+   * consumer's render from within ours. A microtask runs once the current
+   * render has fully unwound, which is both safe and imperceptible.
+   */
+  private _publishFocus(): void {
+    const next = this._computeFocus();
+    if (JSON.stringify(next) === JSON.stringify(this._focus)) { return; }
+    this._focus = next;
+
+    if (this._focusNotifyQueued) { return; }
+    this._focusNotifyQueued = true;
+    Promise.resolve()
+      .then(() => {
+        this._focusNotifyQueued = false;
+        this.context.dynamicDataSourceManager.notifyPropertyChanged(PROCESS_FOCUS_PROPERTY_ID);
+      })
+      .catch(() => { this._focusNotifyQueued = false; });
   }
 
   private get _processList(): string {
@@ -272,10 +386,14 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
     this._error = undefined;
     this._notFound = undefined;
     this._loading = !!code;
+    // A new L3 closes whatever L4 was open — the codes belong to the previous
+    // step and would otherwise leave a consumer showing a stale L4.
+    this._openSubStepCode = null;
 
     // Bumped even when there is no code, so an in-flight request for the
     // previous selection cannot land after a deselect.
     const seq = ++this._requestSeq;
+    this._publishFocus();
     if (!code) { return; }
 
     this._getService().loadProcess(code)
@@ -284,6 +402,7 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
         this._step = step;
         this._notFound = step ? undefined : code;
         this._loading = false;
+        this._publishFocus();
         this.render();
       })
       .catch((err: Error) => {
@@ -291,6 +410,7 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
         this._step = null;
         this._error = err && err.message ? err.message : String(err);
         this._loading = false;
+        this._publishFocus();
         this.render();
       });
   }
@@ -300,9 +420,17 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
     this.render();
   }
 
-  private _diagnostics(): IDiagnosticsView | undefined {
-    if (!this.properties.showDiagnostics) { return undefined; }
-    const d = this._getService().diagnostics;
+  /**
+   * Reports the connection and data state to the console.
+   *
+   * Deliberately the console rather than a block inside the panel. This panel's
+   * height is an input to the sticky logic — both its own pinning and the
+   * position of anything stacked beneath it — and a report rendered inside it
+   * would add several hundred pixels to exactly the measurement being
+   * diagnosed.
+   */
+  private _logDiagnostics(): void {
+    if (!this.properties.showDiagnostics) { return; }
 
     const prop = this.properties.selection;
     let sourceTitle: string | undefined;
@@ -310,7 +438,7 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
     if (prop) {
       payload = prop.tryGetValue();
       // Defensive: the source metadata shape is not worth trusting blindly, and
-      // a diagnostics panel that throws is worse than useless.
+      // a diagnostics readout that throws is worse than useless.
       try {
         const source = prop.tryGetSource();
         sourceTitle = source
@@ -321,286 +449,43 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
       }
     }
 
-    const fetchState: IDiagnosticsView['connection']['fetchState'] =
+    const fetchState =
       this._error ? 'error'
         : this._loading ? 'loading'
           : this._notFound ? 'not found'
             : this._step ? 'loaded'
               : 'idle';
 
-    return {
-      connection: {
-        hasProperty: !!prop,
-        sourceTitle,
-        hasValue: !!payload,
-        payloadCode: payload ? payload.code : undefined,
-        payloadLabel: payload ? payload.label : undefined,
-        effectiveCode: this._code,
-        fetchState,
-      },
-      processList: this._processList,
-      systemList: this._systemList,
-      processFields: d.processFields,
-      systemFields: d.systemFields,
-      systemLogos: d.systemLogos,
-      unresolvedSystems: d.unresolvedSystems,
-      lastQuery: d.lastQuery,
-      lastRowCount: d.lastRowCount,
-    };
-  }
+    // render() runs on every scroll-driven repaint, so without this guard the
+    // console fills with identical lines and the useful ones scroll away.
+    const key = [
+      sourceTitle, payload && payload.code, this._code,
+      this._openSubStepCode, fetchState,
+    ].join('|');
+    if (key === this._lastDiagKey) { return; }
+    this._lastDiagKey = key;
 
-  /** The rendered `.panel`, which is the sole child of this.domElement. */
-  private _panel(): HTMLElement | undefined {
-    const first = this.domElement.firstElementChild;
-    return first instanceof HTMLElement ? first : undefined;
-  }
-
-  /** Returns the panel to normal flow and releases the reserved space. */
-  private _clearSticky(): void {
-    const panel = this._panel();
-    if (panel) {
-      const s = panel.style;
-      s.position = '';
-      s.top = '';
-      s.left = '';
-      s.width = '';
-      s.zIndex = '';
-    }
-    this.domElement.style.height = '';
-  }
-
-  /**
-   * Vertical bounds of the column the panel sits in, in viewport coordinates —
-   * the first ancestor meaningfully taller than the panel. The pinned panel is
-   * kept inside these: it never rises above the top of its own section (which
-   * would float it over the page header), and never outruns the bottom (which
-   * would float it over whatever follows the section).
-   */
-  /**
-   * The nearest ancestor that genuinely scrolls — the section's own scroll box
-   * when it has one. Its visible top edge is what "the top of the section"
-   * means on screen, and unlike the scrolling *content* inside it, that edge
-   * stays put. Returns undefined when nothing between here and the cap scrolls,
-   * in which case the page itself is the scroller.
-   */
-  private _scrollPort(): HTMLElement | undefined {
-    // Deliberately uncapped, unlike the other walks. SharePoint's canvas scroll
-    // region sits well over a dozen levels above the web part, so a cap here
-    // silently reports "the page scrolls" and the panel then pins to a flat
-    // viewport offset instead of to the section. This walk only reads, so
-    // going all the way to <body> costs nothing.
-    let el: HTMLElement | null = this.domElement.parentElement;
-    while (el && el !== document.body && el !== document.documentElement) {
-      const cs = window.getComputedStyle(el);
-      if (
-        (cs.overflowY === 'auto' || cs.overflowY === 'scroll') &&
-        el.scrollHeight > el.clientHeight + 1
-      ) {
-        return el;
-      }
-      el = el.parentElement;
-    }
-    return undefined;
-  }
-
-  private _columnBounds(panelH: number): { top: number; bottom: number } {
-    let el: HTMLElement | null = this.domElement.parentElement;
-    for (let i = 0; i < STICKY_MAX_ANCESTORS && el; i++) {
-      if (el.offsetHeight > panelH + STICKY_TRAVEL_SLACK) {
-        const r = el.getBoundingClientRect();
-        return { top: r.top, bottom: r.bottom };
-      }
-      el = el.parentElement;
-    }
-    return { top: -Infinity, bottom: Infinity }; // no bounding column; don't clamp
-  }
-
-  /**
-   * `position: fixed` needs the viewport as its containing block. Any ancestor
-   * with a transform, filter, perspective, will-change or paint containment
-   * steals that role, and the panel would then be positioned against *it*
-   * instead. Nothing can be done about it from here, but it must be reported —
-   * otherwise the symptom is a panel that pins to the wrong place for no
-   * visible reason.
-   */
-  private _fixedBlocker(): string | undefined {
-    let el: HTMLElement | null = this.domElement.parentElement;
-    for (let i = 0; i < STICKY_MAX_ANCESTORS && el; i++) {
-      const cs = window.getComputedStyle(el);
-      const contain = (cs as unknown as { contain?: string }).contain || '';
-      if (
-        cs.transform !== 'none' ||
-        cs.filter !== 'none' ||
-        cs.perspective !== 'none' ||
-        cs.willChange.indexOf('transform') !== -1 ||
-        /paint|layout|strict|content/.test(contain)
-      ) {
-        return `${el.tagName.toLowerCase()}.${(el.className || '').toString().slice(0, 40)} ` +
-               `(transform: ${cs.transform}, filter: ${cs.filter}, contain: ${contain || 'none'})`;
-      }
-      el = el.parentElement;
-    }
-    return undefined;
-  }
-
-  /**
-   * Dumps the ancestor chain to the console when diagnostics is on. Positioning
-   * depends entirely on host markup we cannot see from here, so when it
-   * misbehaves this is the only way to find out which ancestor is responsible.
-   */
-  private _logSticky(key: string, reason: string): void {
-    if (!this.properties.showDiagnostics) { return; }
-    // This runs on every scroll frame. Without a state guard it would emit
-    // thousands of lines and a console.table per second, which is both
-    // unreadable and slow enough to skew what is being measured.
-    if (key === this._lastLogKey) { return; }
-    this._lastLogKey = key;
-
-    const rows: Array<Record<string, unknown>> = [];
-    let el: HTMLElement | null = this.domElement;
-    for (let i = 0; i <= STICKY_MAX_ANCESTORS && el && el !== document.documentElement; i++) {
-      const cs = window.getComputedStyle(el);
-      rows.push({
-        level: i === 0 ? 'domElement' : `+${i}`,
-        tag: el.tagName.toLowerCase(),
-        class: (el.className || '').toString().slice(0, 50),
-        offsetHeight: el.offsetHeight,
-        overflowY: cs.overflowY,
-        scrollH: el.scrollHeight,
-        clientH: el.clientHeight,
-        // The element sticky WOULD have anchored to — the reason sticky failed
-        // here, and the reason fixed does not care.
-        scrolls: (cs.overflowY === 'auto' || cs.overflowY === 'scroll') &&
-                 el.scrollHeight > el.clientHeight + 1,
-        transform: cs.transform === 'none' ? '' : cs.transform,
-      });
-      el = el.parentElement;
-    }
-
-    const blocker = this._fixedBlocker();
+    const d = this._getService().diagnostics;
     console.warn(
-      `[Process Details] pin: ${reason} — panel ${this.domElement.offsetHeight}px, ` +
-      `viewport ${window.innerWidth}x${window.innerHeight}, ` +
-      `mode ${this.displayMode === DisplayMode.Edit ? 'Edit' : 'Read'}` +
-      (blocker ? `\n  WARNING: fixed positioning is captured by an ancestor: ${blocker}` : '')
+      `[Process Details] source ${sourceTitle || '(not connected)'}, ` +
+      `selected ${(payload && payload.code) || '(none)'}, ` +
+      `showing ${this._code || '(none)'} — ${fetchState}, ` +
+      `open L4 ${this._openSubStepCode || '(none)'}` +
+      `\n  lists "${this._processList}" / "${this._systemList}", ` +
+      `last query returned ${d.lastRowCount} row(s)` +
+      (d.unresolvedSystems.length > 0
+        ? `\n  no logo resolved for: ${d.unresolvedSystems.join(', ')}`
+        : '') +
+      (d.lastQuery ? `\n  ${d.lastQuery}` : '')
     );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const t: any = console;
-    if (typeof t.table === 'function') { t.table(rows); } else { console.warn(rows); }
+    if (d.processFields.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const t: any = console;
+      if (typeof t.table === 'function') { t.table(d.processFields); }
+    }
   }
 
-  /**
-   * Pins the panel to the viewport so it stays beside the (much taller)
-   * hierarchy while the page scrolls.
-   *
-   * Uses `position: fixed`, not `position: sticky`. Sticky can only stick
-   * within the nearest *scrolling* ancestor, and in SharePoint the panel sits
-   * inside a section that scrolls independently of the page — so sticky pinned
-   * it to the section and it left the screen the moment the page scrolled.
-   * Fixed is viewport-relative, which makes nested scroll containers
-   * irrelevant. The cost is that position has to be recomputed on scroll, and
-   * this.domElement has to hold the vacated space so the column does not
-   * collapse.
-   */
-  private _applySticky(): void {
-    const panel = this._panel();
-    if (!panel) { return; }
 
-    // `=== false`, not `!`: a web part instance added before this property
-    // existed has nothing in its property bag, and undefined should mean "on"
-    // — same convention as showBreadcrumb / singleOpenSubStep above.
-    if (this.properties.stickyPanel === false) { this._clearSticky(); this._logSticky('off-toggle', 'off (toggle)'); return; }
-    // Pinning fights the authoring canvas, the drag handles and the property pane.
-    if (this.displayMode === DisplayMode.Edit) { this._clearSticky(); this._logSticky('off-edit', 'off (edit mode)'); return; }
-    // Below this the columns stack, so a pinned panel covers the hierarchy.
-    if (window.innerWidth < STICKY_MIN_WIDTH) { this._clearSticky(); this._logSticky('off-narrow', 'off (viewport too narrow)'); return; }
-
-    const panelH = panel.offsetHeight;
-    if (panelH === 0) { return; } // not laid out yet; the next render will catch it
-
-    // Where the panel sits in normal flow. While pinned, this.domElement still
-    // occupies that slot at the panel's height, so this stays correct in both
-    // states — which is what makes the pin/unpin test stable in both scroll
-    // directions.
-    const slot = this.domElement.getBoundingClientRect();
-    const vh = window.innerHeight;
-    const top = typeof this.properties.stickyTopOffset === 'number'
-      ? this.properties.stickyTopOffset
-      : DEFAULT_STICKY_TOP;
-
-    const column = this._columnBounds(panelH);
-    const port = this._scrollPort();
-    let portRect = port ? port.getBoundingClientRect() : undefined;
-
-    // Only treat the scroll port as "the section" if it is actually big enough
-    // to hold the panel. A small scrolling ancestor is some inner widget, not
-    // the section, and letting it drive the bounds squeezes the usable band
-    // below the panel height — which silently prevents pinning entirely.
-    if (portRect && portRect.height < panelH + STICKY_GAP) { portRect = undefined; }
-
-    // "Top of the section" is the scroll box's own top edge when the section
-    // scrolls independently — that edge is stable, whereas the tall content
-    // inside it slides away. Only when nothing nested scrolls does the column
-    // stand in for it. Either way the offset still applies once that edge has
-    // scrolled up past it, so the panel keeps clearing SharePoint's chrome.
-    const sectionTop = portRect ? portRect.top : column.top;
-    const ceiling = Math.max(top, sectionTop + STICKY_GAP);
-
-    // The panel also must not hang below the visible bottom of the section.
-    const visibleBottom = Math.min(
-      vh - STICKY_GAP,
-      portRect ? portRect.bottom - STICKY_GAP : Infinity
-    );
-
-    const tallerThanViewport = panelH > visibleBottom - ceiling;
-    let pinTop: number | undefined;
-
-    if (!tallerThanViewport) {
-      // Short panel: pin as soon as its natural position rises above the ceiling.
-      if (slot.top < ceiling) { pinTop = ceiling; }
-    } else {
-      // Tall panel: let it scroll along until its bottom edge reaches the bottom
-      // of the visible area, then hold it there — the chosen behaviour.
-      if (slot.top + panelH < visibleBottom) {
-        pinTop = Math.max(visibleBottom - panelH, ceiling);
-      }
-    }
-
-    if (pinTop === undefined) {
-      this._clearSticky();
-      this._logSticky(
-        'unpinned',
-        `unpinned — slotTop ${Math.round(slot.top)}px vs ceiling ${Math.round(ceiling)}px, ` +
-        `visibleBottom ${Math.round(visibleBottom)}px, ` +
-        `${tallerThanViewport ? 'bottom' : 'top'}-anchor mode, ` +
-        `scrollPort ${port ? `${port.tagName.toLowerCase()} ${Math.round(port.getBoundingClientRect().height)}px tall` : 'none'}`
-      );
-      return;
-    }
-
-    // Ride up with the end of the column rather than floating past it. Applied
-    // last so it wins over the ceiling: at the very end of a section the panel
-    // has to leave, even if that means going above the section top.
-    if (column.bottom - panelH < pinTop) { pinTop = column.bottom - panelH; }
-
-    // Reserve the vacated space before fixing, or the column collapses and
-    // everything below it jumps.
-    this.domElement.style.height = `${panelH}px`;
-
-    const s = panel.style;
-    s.position = 'fixed';
-    s.top = `${pinTop}px`;
-    s.left = `${slot.left}px`;
-    s.width = `${slot.width}px`;
-    s.zIndex = '10';
-
-    this._logSticky(
-      `pinned-${tallerThanViewport ? 'bottom' : 'top'}-${port ? 'port' : 'page'}`,
-      `pinned at ${Math.round(pinTop)}px (${tallerThanViewport ? 'bottom' : 'top'}-anchored) — ` +
-      `scrollPort ${port ? `${port.tagName.toLowerCase()}.${(port.className || '').toString().slice(0, 30)} top ${Math.round(port.getBoundingClientRect().top)}px h${Math.round(port.getBoundingClientRect().height)}${portRect ? '' : ' (ignored, too short)'}` : 'none (the page scrolls)'}, ` +
-      `columnTop ${Math.round(column.top)}px, ceiling ${Math.round(ceiling)}px`
-    );
-  }
 
 
   public render(): void {
@@ -619,6 +504,15 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
         error:             sample ? undefined : this._error,
         notFoundCode:      sample ? undefined : this._notFound,
         onRetry:           () => { this._retry(); },
+        // Controlled from the web part rather than left to the component: the
+        // open L4 is part of what this web part publishes, so it cannot live
+        // in component state where getPropertyValue() can't reach it.
+        openSubStepCode:   sample ? undefined : this._openSubStepCode,
+        onSubStepToggle:   (code: string | null) => {
+          this._openSubStepCode = code;
+          this._publishFocus();
+          this.render();
+        },
         title:             this.properties.title,
         headerIcon:        this.properties.headerIcon,
         showBreadcrumb:    this.properties.showBreadcrumb !== false,
@@ -626,30 +520,25 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
         emptyIcon:         this.properties.emptyIcon,
         emptyHeading:      this.properties.emptyHeading,
         emptyBody:         this.properties.emptyBody,
-        diagnostics:       this._diagnostics(),
       }
     );
     ReactDom.render(element, this.domElement);
 
+    this._logDiagnostics();
+
     // After the render, so the measurement sees the panel's new height —
     // selecting a step with many L4 rows can flip it from top- to
     // bottom-anchored.
-    this._applySticky();
+    if (this._sticky) { this._sticky.apply(); }
   }
 
   protected onThemeChanged(_currentTheme: IReadonlyTheme | undefined): void { /* no-op */ }
 
   protected onDispose(): void {
     this.context.dynamicDataProvider.unregisterAvailableSourcesChanged(this._onAvailableSourcesChanged);
-    document.removeEventListener('scroll', this._onViewportChange, true);
-    window.removeEventListener('resize', this._onViewportChange);
-    if (this._resizeRaf !== undefined) {
-      window.cancelAnimationFrame(this._resizeRaf);
-      this._resizeRaf = undefined;
-    }
     // Before unmounting, so the host DOM we borrowed is handed back untouched
     // even if this web part is removed from the page.
-    this._clearSticky();
+    if (this._sticky) { this._sticky.dispose(); }
     // Not properties.selection.dispose() — the framework owns it, because it is
     // declared in propertiesMetadata.
     ReactDom.unmountComponentAtNode(this.domElement);
@@ -677,6 +566,14 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
                   fields: [
                     PropertyPaneDynamicField('selection', {
                       label: 'Process step',
+                      // Unset, this drills two levels into the connected
+                      // property's own value and offers to bind to one of its
+                      // individual members (e.g. just ISelectedProcessStep's
+                      // "code" or "label") instead of the whole object. This
+                      // panel always wants the whole object, so that drill-down
+                      // is switched off — see the matching note in
+                      // RasciWebPart.ts, which has the same connection shape.
+                      propertyValueDepth: 0,
                     }),
                   ],
                   sharedConfiguration: {
@@ -769,6 +666,21 @@ export default class ProcessDetailsWebPart extends BaseClientSideWebPart<IProces
                   max: 400,
                   step: 5,
                   disabled: this.properties.stickyPanel === false,
+                }),
+              ],
+            },
+            {
+              groupName: 'Troubleshooting',
+              groupFields: [
+                PropertyPaneToggle('showDiagnostics', {
+                  label: 'Show diagnostics',
+                }),
+                PropertyPaneLabel('diagnosticsHelp', {
+                  text:
+                    'Adds a report under the panel showing the connection, the resolved '
+                    + 'list columns and the last query, and logs every pin decision to the '
+                    + 'browser console with the ancestor chain it measured. Leave off for '
+                    + 'readers — this is for diagnosing a panel that pins in the wrong place.',
                 }),
               ],
             },

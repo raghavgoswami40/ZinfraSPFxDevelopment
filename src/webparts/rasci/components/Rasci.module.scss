@@ -1,0 +1,278 @@
+/* ── Design tokens ───────────────────────────────────────────────────────────
+   Header and body are deliberately identical to ProcessDetails.module.scss —
+   the two panels sit side by side, so any drift between them reads as a bug.
+   Copied rather than shared because SPFx compiles one stylesheet per web part
+   bundle; if these ever need to move together, extract a shared partial. */
+$panel-header-bg: #1c1c1c;
+$panel-gradient:  linear-gradient(to bottom, #1c1c1c 0%, #1b1b1b 35%, #333 70%, #4a4a4a 100%);
+
+$text-primary:  #ffffff;
+$text-body:     #ffffff;
+$text-muted:    #c3c3c3;
+$text-accent:   #7ec8f0;
+
+$divider:        rgba(255, 255, 255, 0.12);
+$divider-strong: rgba(255, 255, 255, 0.14);
+
+$badge-bg: #0f6cbd;
+
+$font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
+
+/* ── Panel shell ─────────────────────────────────────────────────────────── */
+.panel {
+  font-family: $font-stack;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.13), 0 0.3px 0.9px rgba(0, 0, 0, 0.11);
+  min-width: 280px;
+  box-sizing: border-box;
+
+  // No gap *above* on purpose. The space between this panel and a Process
+  // Details panel over it is owned entirely by stickyPanel.ts, which measures
+  // both panels live and holds them exactly STICKY_GAP apart in every state.
+  // A static margin here would be added on top of that and on top of whatever
+  // SharePoint's own layout already contributes, which is what made the
+  // unscrolled gap larger than the scrolled one.
+
+  // Trailing room below, matching the breathing space the process hierarchy
+  // leaves under its last phase, and giving the panel somewhere to scroll to at
+  // the end of the section. stickyPanel.ts folds this into the space it reserves
+  // while pinned, so the page keeps the same length in both states.
+  margin-bottom: 48px;
+
+  * { box-sizing: border-box; }
+}
+
+.header {
+  background: $panel-header-bg;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headerIcon {
+  font-size: 18px;
+  line-height: 1;
+
+  // The emoji glyph itself sits low within its own line box relative to the
+  // adjacent Latin text (a quirk of how colour-emoji fonts lay out their
+  // glyphs, not of the flex centring here), so it needs its own nudge up to
+  // align with the header title's optical centre. -2px closed most of the
+  // gap but measurably left it ~1.5px low; -4px was checked against a pixel
+  // measurement of the rendered header (bounding-box and weighted-centroid
+  // both put the "RASCI" text at ~y212 in that capture) and lands within
+  // less than 1px of it.
+  position: relative;
+  top: -4px;
+
+  // Emoji ignore the CSS "color" property — they are full-colour glyphs,
+  // not currentColor-aware icon fonts — so recolouring one to white has to
+  // work on the rendered pixels instead: brightness(0) collapses every opaque
+  // pixel to black while leaving transparency alone, then invert(1) flips that
+  // black to white. The result is a flat white silhouette of whatever glyph is
+  // set here, author-provided emoji included.
+  filter: brightness(0) invert(1);
+}
+
+.headerTitle {
+  font-size: 17px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.body {
+  background: $panel-gradient;
+}
+
+/* ── Title block ─────────────────────────────────────────────────────────── */
+.titleBlock {
+  padding: 16px;
+  border-bottom: 1px solid $divider-strong;
+}
+
+.stepTitle {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: $text-primary;
+  margin: 0;
+}
+
+/* ── Role sections ───────────────────────────────────────────────────────── */
+/* One block per role. The separator between roles echoes the L4 rows in the
+   details panel, so the two read as the same family of list. */
+.roleBlock {
+  padding: 14px 16px;
+  border-top: 1px solid $divider;
+
+  &:first-child { border-top: none; }
+}
+
+/* Mirrors ProcessDetails' .sectionLabel, except the accent is per-role and so
+   has to come from an inline style rather than a SCSS variable. */
+.roleLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 9px;
+}
+
+.roleSwatch {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Filled pill. Background and text colour are both inline: the fill is the
+   author's chosen colour and the text is whichever of black/white contrasts
+   with it, which only JavaScript can work out. */
+.tag {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  border-radius: 999px;
+  padding: 4px 11px;
+  white-space: normal;
+  max-width: 100%;
+}
+
+/* A role with nobody named against it. Shown rather than hidden: an empty
+   Accountable is worth seeing in the matrix, not worth silently omitting. */
+.roleEmpty {
+  font-size: 11.5px;
+  font-style: italic;
+  color: $text-muted;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.empty {
+  padding: 32px 20px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 32px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.emptyHeading {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 6px;
+}
+
+.emptyBody {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: $text-muted;
+}
+
+/* ── Loading state ───────────────────────────────────────────────────────── */
+.loading {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shimmer {
+  height: 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.shimmerA { width: 60%; }
+.shimmerB { width: 90%; }
+.shimmerC { width: 75%; }
+
+/* ── Error state ─────────────────────────────────────────────────────────── */
+.retryBtn {
+  margin-top: 14px;
+  background: $badge-bg;
+  color: #fff;
+  font-family: $font-stack;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 4px;
+  height: 34px;
+  padding: 0 18px;
+  cursor: pointer;
+
+  &:hover { background: #0e5fa6; }
+
+  &:focus-visible {
+    outline: 2px solid $text-accent;
+    outline-offset: 2px;
+  }
+}
+
+/* ── Diagnostics ─────────────────────────────────────────────────────────── */
+.diagnostics {
+  border-top: 2px solid $divider-strong;
+  padding: 16px;
+  font-size: 11px;
+  color: $text-muted;
+  overflow-x: auto;
+}
+
+.diagHeading {
+  font-size: 13px;
+  font-weight: 700;
+  color: $text-primary;
+  margin-bottom: 10px;
+}
+
+.diagSubheading {
+  font-weight: 700;
+  color: $text-body;
+  margin-bottom: 4px;
+}
+
+.diagBlock { margin-bottom: 12px; }
+
+.diagWarn {
+  background: rgba(255, 170, 0, 0.15);
+  border-left: 3px solid #ffaa00;
+  padding: 6px 8px;
+  margin-bottom: 12px;
+  color: #ffd591;
+}
+
+.diagEmpty { font-style: italic; }
+
+.diagTable {
+  border-collapse: collapse;
+  width: 100%;
+
+  td {
+    padding: 2px 8px 2px 0;
+    vertical-align: top;
+    border-bottom: 1px solid $divider;
+  }
+
+  code { color: $text-accent; word-break: break-all; }
+}
+
+.diagQuery {
+  display: block;
+  color: $text-accent;
+  word-break: break-all;
+  line-height: 1.4;
+}

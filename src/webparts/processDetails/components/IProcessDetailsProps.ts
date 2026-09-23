@@ -37,31 +37,6 @@ export interface IProcessStep {
   subSteps: ISubStep[];     // empty array when the step has none
 }
 
-/** Read-out for the Diagnostics toggle — see ProcessDetailsService.IDiagnostics. */
-export interface IDiagnosticsView {
-  /** Dynamic Data wiring state. Reported first, because a panel that shows
-   *  nothing is far more often unconnected than misconfigured. */
-  connection: {
-    hasProperty: boolean;
-    sourceTitle?: string;
-    /** Whether a payload actually arrived from the source. */
-    hasValue: boolean;
-    payloadCode?: string;
-    payloadLabel?: string;
-    /** The code the panel is actually acting on. */
-    effectiveCode?: string;
-    fetchState: 'idle' | 'loading' | 'loaded' | 'not found' | 'error';
-  };
-  processList: string;
-  systemList: string;
-  processFields: Array<{ displayName: string; internalName: string; typeAsString: string }>;
-  systemFields: Array<{ displayName: string; internalName: string; typeAsString: string }>;
-  systemLogos: Array<{ system: string; logoUrl: string }>;
-  unresolvedSystems: string[];
-  lastQuery?: string;
-  lastRowCount?: number;
-}
-
 export interface IProcessDetailsProps {
   selectedStep: IProcessStep | null;
   isLoading?: boolean;
@@ -93,7 +68,4 @@ export interface IProcessDetailsProps {
   /** Default "Click on any process in the process hierarchy to see its
    *  inputs, procedure and outputs here." */
   emptyBody?: string;
-
-  /** Renders the resolved field names and system map below the panel body. */
-  diagnostics?: IDiagnosticsView;
 }

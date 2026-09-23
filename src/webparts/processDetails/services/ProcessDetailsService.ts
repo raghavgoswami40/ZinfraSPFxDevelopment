@@ -4,7 +4,7 @@
  * prop is typed IProcessStep | null to match. */
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import { IProcessStep, IOutputItem, ISubStep } from '../components/IProcessDetailsProps';
-import { ListFieldMap, loadFieldMap, IFieldInfo, isLookupType } from './spFieldNames';
+import { ListFieldMap, loadFieldMap, IFieldInfo, isLookupType } from '../../../shared/spFieldNames';
 
 /**
  * Reads a process and its L4 variants from the "Process Details" list, with

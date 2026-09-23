@@ -1,7 +1,7 @@
 import * as React from 'react';
 import styles from './ProcessDetails.module.scss';
 import {
-  IProcessDetailsProps, IOutputItem, ISubStep, IDiagnosticsView,
+  IProcessDetailsProps, IOutputItem, ISubStep,
 } from './IProcessDetailsProps';
 
 const DEFAULT_TITLE = 'Process details';
@@ -9,7 +9,7 @@ const DEFAULT_ICON  = '🧾';
 const DEFAULT_EMPTY_ICON    = '👈';
 const DEFAULT_EMPTY_HEADING = 'Select a process to view details';
 const DEFAULT_EMPTY_BODY    =
-  'Click on any process in the process hierarchy to see its inputs, procedure and outputs here.';
+  'Click on any process in the process hierarchy to see its purpose, inputs and outputs here.';
 
 // Ids must be unique per web part instance (two panels can share a page) and
 // safe for an HTML id, so codes like "2.1.3.1" lose their dots.
@@ -68,98 +68,6 @@ const OutputList: React.FC<{ items: IOutputItem[] }> = ({ items }) => (
   </ul>
 );
 
-const Diagnostics: React.FC<{ data: IDiagnosticsView }> = ({ data }) => {
-  const c = data.connection;
-  // The two states that account for almost every "the panel shows nothing":
-  // never connected, or connected but no click has arrived yet.
-  const notConnected = !c.sourceTitle;
-
-  return (
-  <div className={styles.diagnostics}>
-    <div className={styles.diagHeading}>Diagnostics</div>
-
-    {notConnected && (
-      <div className={styles.diagWarn}>
-        Not connected to a process hierarchy. Open the property pane &rarr;
-        Connection, and pick a source under &ldquo;Connect to a process hierarchy&rdquo;.
-      </div>
-    )}
-    {!notConnected && !c.hasValue && (
-      <div className={styles.diagWarn}>
-        Connected to &ldquo;{c.sourceTitle}&rdquo;, but no step has been selected yet.
-        Switch the page out of edit mode, then click a rectangle.
-      </div>
-    )}
-
-    <div className={styles.diagBlock}>
-      <div className={styles.diagSubheading}>Connection</div>
-      <table className={styles.diagTable}>
-        <tbody>
-          <tr><td>Source</td><td>{c.sourceTitle || <em>none</em>}</td></tr>
-          <tr><td>Payload received</td><td>{c.hasValue ? 'yes' : 'no'}</td></tr>
-          {c.hasValue && <tr><td>Payload code</td><td><code>{c.payloadCode || '(none)'}</code></td></tr>}
-          {c.hasValue && <tr><td>Payload label</td><td>{c.payloadLabel}</td></tr>}
-          <tr><td>Code in use</td><td><code>{c.effectiveCode || '(none)'}</code></td></tr>
-          <tr><td>Fetch</td><td>{c.fetchState}</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    {data.unresolvedSystems.length > 0 && (
-      <div className={styles.diagWarn}>
-        No logo resolved for: {data.unresolvedSystems.join(', ')}
-      </div>
-    )}
-
-    {[
-      { label: data.processList, fields: data.processFields },
-      { label: data.systemList, fields: data.systemFields },
-    ].map((list) => (
-      <div key={list.label} className={styles.diagBlock}>
-        <div className={styles.diagSubheading}>{list.label} — columns</div>
-        {list.fields.length === 0
-          ? <div className={styles.diagEmpty}>not loaded</div>
-          : (
-            <table className={styles.diagTable}>
-              <tbody>
-                {list.fields.map((f) => (
-                  <tr key={f.internalName}>
-                    <td>{f.displayName}</td>
-                    <td><code>{f.internalName}</code></td>
-                    <td>{f.typeAsString}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-      </div>
-    ))}
-
-    <div className={styles.diagBlock}>
-      <div className={styles.diagSubheading}>Systems with a logo</div>
-      {data.systemLogos.length === 0
-        ? <div className={styles.diagEmpty}>none</div>
-        : (
-          <ul className={styles.diagList}>
-            {data.systemLogos.map((s) => (
-              <li key={s.system}>
-                <img className={styles.outputLogo} src={s.logoUrl} alt="" /> {s.system}
-              </li>
-            ))}
-          </ul>
-        )}
-    </div>
-
-    {data.lastQuery && (
-      <div className={styles.diagBlock}>
-        <div className={styles.diagSubheading}>Last query — {data.lastRowCount} row(s)</div>
-        <code className={styles.diagQuery}>{data.lastQuery}</code>
-      </div>
-    )}
-  </div>
-  );
-};
-
 const ProcessDetails: React.FC<IProcessDetailsProps> = (props) => {
   const {
     selectedStep,
@@ -176,7 +84,6 @@ const ProcessDetails: React.FC<IProcessDetailsProps> = (props) => {
     emptyIcon = DEFAULT_EMPTY_ICON,
     emptyHeading = DEFAULT_EMPTY_HEADING,
     emptyBody = DEFAULT_EMPTY_BODY,
-    diagnostics,
   } = props;
 
   // Controlled whenever the host supplies openSubStepCode at all — the prop is
@@ -327,14 +234,19 @@ const ProcessDetails: React.FC<IProcessDetailsProps> = (props) => {
   };
 
   return (
-    <div className={styles.panel} role="region" aria-label={title || DEFAULT_TITLE}>
+    <div
+      className={styles.panel}
+      role="region"
+      aria-label={title || DEFAULT_TITLE}
+      data-sticky-role="process-details"
+    >
       <div className={styles.header}>
         {headerIcon && <span className={styles.headerIcon} aria-hidden="true">{headerIcon}</span>}
         <span className={styles.headerTitle}>{title || DEFAULT_TITLE}</span>
       </div>
       <div className={styles.body}>
         {renderBody()}
-        {diagnostics && <Diagnostics data={diagnostics} />}
+
       </div>
     </div>
   );

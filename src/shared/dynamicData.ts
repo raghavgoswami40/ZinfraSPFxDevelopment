@@ -37,3 +37,50 @@ export interface ISelectedProcessStep {
   /** Raw phase title, e.g. "2  PLAN". */
   phaseTitle: string;
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Second contract: Process Details (source) -> RASCI (consumer).
+ *
+ * RASCI needs to know two things that only Process Details can answer: which
+ * L3 is selected, and — because an L3 with L4 children must show its L4's
+ * RASCI rather than its own — whether that L3 has children and which one the
+ * reader has opened. Publishing both from Process Details means RASCI needs a
+ * single connection instead of two, and can never disagree with the panel
+ * about whether sub-steps exist.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** Id of the property Process Details publishes. */
+export const PROCESS_FOCUS_PROPERTY_ID: string = 'processFocus';
+
+/**
+ * Manifest id of ProcessDetailsWebPart, used to filter RASCI's source
+ * dropdown. Must match ProcessDetailsWebPart.manifest.json "id" exactly.
+ */
+export const PROCESS_DETAILS_COMPONENT_ID: string = '7adf9e52-9cf5-4951-adbf-b3bf8ab2dab5';
+
+/**
+ * Payload published on PROCESS_FOCUS_PROPERTY_ID. Flat and JSON-serialisable,
+ * for the same reason as ISelectedProcessStep.
+ */
+export interface IProcessFocus {
+  /** Code of the L3 selected in the hierarchy; absent when nothing is selected. */
+  l3Code?: string;
+  l3Title?: string;
+  /** True once the L3's row has loaded and turned out to have L4 children.
+   *  False while still loading, and for a childless L3. */
+  hasSubSteps: boolean;
+  /** True while the L3's own details are still being fetched, so a consumer
+   *  can hold its empty state rather than flashing the wrong one. */
+  pending: boolean;
+  /** The L4 row currently expanded in the panel, if any. */
+  l4Code?: string;
+  l4Title?: string;
+  /**
+   * The code a consumer should actually display:
+   *  - the open L4 when the L3 has children,
+   *  - the L3 itself when it has none,
+   *  - absent when nothing is selected, or an L3 with children has no open L4.
+   */
+  focusCode?: string;
+  focusTitle?: string;
+}

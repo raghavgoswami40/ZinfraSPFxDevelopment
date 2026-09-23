@@ -2,26 +2,26 @@ $dark:       #1c1c1c;
 $green:      #b9ce33;
 $blue:       #2dafe3;
 $grey:       #9e9e9e;
-// Step boxes used to fill $dark (#1c1c1c) flat — near-max contrast against
-// whatever sat behind them, which made them the loudest thing on the page
-// regardless of which step mattered. Replaced with a translucent navy-blue
-// family so the section background shows through and the boxes read as part
-// of the diagram rather than opaque tiles stacked on it. The base color is a
-// dark navy, not the bright $blue accent — a translucent bright blue at a
-// visible alpha composites to a background too light for white text.
+// Step boxes, approval pills and SAP hexagons all share one fill. It is a pale
+// blue and fully opaque — nothing here composites with the section behind it,
+// so a box reads the same whatever it sits on.
 //
-// Steps sit inside a section row, whose own background is $blue (or $grey for
+// Being pale is what sets the rest of the palette. The label was white when
+// these shapes were dark; on this fill white lands at about 1.5:1, so the label
+// and the hexagon's "SAP Status" prefix are dark instead (see .stepLabel /
+// .sapPrefix), and hover and selected stay inside the same pale family rather
+// than reverting to a dark fill that would break the label again.
+//
+// Steps sit inside a section row whose own background is $blue (or $grey for
 // the few grey-variant sections) — NOT $green, which is only the outer phase
-// wrapper's background, showing as a thin gutter around each section. Both
-// $blue and $grey are darker than $green, so contrast here is checked against
-// them.
-$step-border:          rgba(45, 175, 227, 0.35);  // translucent $blue edge
-$step-border-hover:     rgba(45, 175, 227, 0.55);  // a touch stronger on hover
-$step-fill:             rgba(10, 42, 58, 0.40);    // translucent navy over $blue/$grey -> ~4.8:1 / ~5.1:1 vs white;
-                                                    // below ~0.30 alpha the blend (over $blue, the tighter case) fails 4.5:1 AA
-$step-fill-hover:       rgba(10, 42, 58, 0.72);    // more opaque on hover -> ~8.0:1, reads as "more active"
-$step-selected-fill:    #1f5b73;                   // solid, saturated -> ~7.5:1 — must not read as "default + hover"
-$step-selected-border:  $blue;                     // solid, not translucent — the selected accent
+// wrapper showing as a thin gutter. All three fills below are lighter than
+// both, which is what keeps a borderless box legible against either.
+$step-fill:             #a9d7ef;  // vs $step-label -> ~11:1
+$step-fill-hover:       #8fc9e8;  // a shade deeper -> ~9.5:1, reads as "more active"
+$step-selected-fill:    #6fb5dc;  // deeper again -> ~7.6:1 — must not read as "default + hover"
+$step-label:            $dark;    // dark, because the fills above are pale
+// No border tokens: the shapes carry no border at all, so their edge against
+// $blue/$grey behind them comes entirely from the fill/hover/selected steps.
 
 $hexagon: polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%);
 $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
@@ -140,18 +140,16 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
 }
 
 /* ── Step boxes ──────────────────────────────────────────── */
-/* Base fill is the translucent $step-fill navy, with a translucent $blue
-   border for edge definition. Only rectangles are selectable (see
-   .stepClickable / .stepSelected below); every other shape keeps the same
-   fill+border but no hover/selected/focus behaviour.
+/* No border: the pale $step-fill carries its own edge against the section
+   behind it. Only rectangles are selectable (see .stepClickable /
+   .stepSelected below); every other shape keeps the same fill but no
+   hover/selected/focus behaviour.
    Non-rectangular shapes paint their fill via a clipped ::before layer rather
    than clipping the element itself, so badges and edit buttons positioned at
-   the element's corners stay visible instead of being cut away by clip-path.
-   A border on that ::before is clipped by the same clip-path as the
-   background, so the hexagon/pill keep a correctly-shaped edge too. */
+   the element's corners stay visible instead of being cut away by clip-path. */
 .step {
   background: $step-fill;
-  border: 1.5px solid $step-border;
+  border: none;
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -173,7 +171,6 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
     position: absolute;
     inset: 0;
     background: $step-fill;
-    border: 1.5px solid $step-border;
     z-index: 0;
   }
 }
@@ -194,10 +191,11 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   &::before { clip-path: $hexagon; }
 }
 
-/* Gate — diamond, filled lime. Dark label because white on $green is unreadable.
-   Not part of the step-box recolor: gates were never near-black to begin with,
-   and a blue edge around a green diamond would read as a mistake rather than
-   a deliberate accent, so both fill and border are overridden back off here. */
+/* Gate — diamond, filled lime, and the one shape that keeps its own fill: a
+   blue edge around a green diamond would read as a mistake rather than a
+   deliberate accent, so both fill and border are overridden back off here. Its
+   label was already dark for contrast against $green, which is now what every
+   other shape does too. */
 .shapeGate {
   padding: 4px 24px;
 
@@ -222,40 +220,38 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
    selectable, so their clipped ::before fills are never touched here. */
 .stepClickable {
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
+  transition: background 0.12s;
 
   &:hover {
     background: $step-fill-hover;
-    border-color: $step-border-hover;
   }
 
   /* An outline, not a border or box-shadow. Widths are pinned inline with
      box-sizing: border-box, so a border would eat inner width and squeeze the
      label rather than show; and .step sets overflow: visible, so an outline
-     paints cleanly outside the box. Still reads as clearly distinct from the
-     now-translucent default border — it's solid $blue at 2px vs. a thin
-     translucent edge. */
+     paints cleanly outside the box.
+     $dark rather than $blue: the offset puts the ring on the section row, whose
+     own background *is* $blue, so a blue ring would disappear into it. Dark
+     carries against the row (~6.8:1) and against the pale fill alike. */
   &:focus-visible {
-    outline: 2px solid $blue;
+    outline: 2px solid $dark;
     outline-offset: 2px;
   }
 }
 
 .stepSelected {
   background: $step-selected-fill;
-  border-color: $step-selected-border;
 
   &:hover {
     background: $step-selected-fill;
-    border-color: $step-selected-border;
   }
 
-  /* Not filter: brightness() — that would wash out the white label and the
-     code badge along with the fill. Solid, not translucent, so a selected
-     step reads as unambiguously heavier than a merely-hovered one. */
+  /* Not filter: brightness() — that would drag the label and the code badge
+     along with the fill. A deliberate deeper step in the same pale family, so
+     a selected step reads as unambiguously heavier than a merely-hovered one
+     while its dark label stays readable. */
   &::before {
     background: $step-selected-fill;
-    border-color: $step-selected-border;
   }
 }
 
@@ -265,7 +261,10 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.3px;
-  color: rgba(255,255,255,0.75);
+  /* Solid, and a touch lighter than the status text below it so the two still
+     read as label-then-value. At 8px it needs the contrast a translucent grey
+     would not give it on the pale hexagon — this lands around 7:1. */
+  color: #3d3d3d;
   line-height: 1.1;
   white-space: nowrap;
 }
@@ -372,7 +371,7 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;
-  background: #404040; /* lighter than the black step so the chip stays distinct */
+  background: #404040; /* dark against the pale step, so the chip stays distinct */
   color: #fff;
   font-size: 9px;
   font-weight: 700;
@@ -388,7 +387,7 @@ $diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   position: relative;
   z-index: 1;
   font-size: 11px;
-  color: #fff;
+  color: $step-label;
   text-align: center;
   line-height: 1.3;
   overflow-wrap: break-word;

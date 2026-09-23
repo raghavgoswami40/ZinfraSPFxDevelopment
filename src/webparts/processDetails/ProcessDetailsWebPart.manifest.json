@@ -36,7 +36,7 @@
         "stickyTopOffset": 90,
         "emptyIcon": "👈",
         "emptyHeading": "Select a process to view details",
-        "emptyBody": "Click on any process in the process hierarchy to see its inputs, procedure and outputs here."
+        "emptyBody": "Click on any process in the process hierarchy to see its purpose, inputs and outputs here."
       }
     }
   ]
