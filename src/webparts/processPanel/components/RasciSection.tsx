@@ -1,12 +1,12 @@
 import * as React from 'react';
-import styles from './Rasci.module.scss';
+import styles from './RasciSection.module.scss';
 import {
-  IRasciProps, RoleKey, ROLE_ORDER, ROLE_META,
-} from './IRasciProps';
-import { textOn, onDark } from './roleColors';
+  IRasciSectionProps, RoleKey, ROLE_ORDER, ROLE_META,
+} from './IProcessPanelProps';
+import { onDark } from './roleColors';
+import { RasciLogo } from './SectionIcons';
 
 const DEFAULT_TITLE = 'RASCI';
-const DEFAULT_ICON  = '👥';
 const DEFAULT_EMPTY_ICON = '👈';
 const DEFAULT_EMPTY_ICON_L4 = '👆';
 
@@ -26,34 +26,24 @@ const RoleSection: React.FC<{
   color: string;
 }> = ({ role, holders, color }) => {
   const label = ROLE_META[role].label;
-  const tagText = textOn(color);
 
   return (
     <div className={styles.roleBlock}>
       <div className={styles.roleLabel} style={{ color: onDark(color) }}>
-        <span className={styles.roleSwatch} style={{ background: color }} aria-hidden="true" />
         {label}
       </div>
       {holders.length === 0 ? (
         <div className={styles.roleEmpty}>N/A</div>
       ) : (
-        <div className={styles.tags}>
-          {holders.map((holder, i) => (
-            <span
-              key={`${holder}_${i}`}
-              className={styles.tag}
-              style={{ background: color, color: tagText }}
-            >
-              {holder}
-            </span>
-          ))}
-        </div>
+        <ul className={styles.holders}>
+          {holders.map((holder, i) => <li key={`${holder}_${i}`}>{holder}</li>)}
+        </ul>
       )}
     </div>
   );
 };
 
-const Rasci: React.FC<IRasciProps> = (props) => {
+const RasciSection: React.FC<IRasciSectionProps> = (props) => {
   const {
     record,
     isLoading,
@@ -62,7 +52,6 @@ const Rasci: React.FC<IRasciProps> = (props) => {
     notFoundCode,
     onRetry,
     title = DEFAULT_TITLE,
-    headerIcon = DEFAULT_ICON,
     colors,
     emptyIcon = DEFAULT_EMPTY_ICON,
     emptyIconL4 = DEFAULT_EMPTY_ICON_L4,
@@ -130,7 +119,9 @@ const Rasci: React.FC<IRasciProps> = (props) => {
     return (
       <>
         <div className={styles.titleBlock}>
-          <h3 className={styles.stepTitle}>{record.title}</h3>
+          <h3 className={styles.stepTitle}>
+            {record.code ? `${record.code} ${record.title}` : record.title}
+          </h3>
         </div>
 
         {ROLE_ORDER.map((role) => (
@@ -146,14 +137,9 @@ const Rasci: React.FC<IRasciProps> = (props) => {
   };
 
   return (
-    <div
-      className={styles.panel}
-      role="region"
-      aria-label={title || DEFAULT_TITLE}
-      data-sticky-role="rasci"
-    >
+    <div className={styles.panel} role="region" aria-label={title || DEFAULT_TITLE}>
       <div className={styles.header}>
-        {headerIcon && <span className={styles.headerIcon} aria-hidden="true">{headerIcon}</span>}
+        <span className={styles.headerIcon} aria-hidden="true"><RasciLogo /></span>
         <span className={styles.headerTitle}>{title || DEFAULT_TITLE}</span>
       </div>
       <div className={styles.body}>
@@ -163,4 +149,4 @@ const Rasci: React.FC<IRasciProps> = (props) => {
   );
 };
 
-export default Rasci;
+export default RasciSection;

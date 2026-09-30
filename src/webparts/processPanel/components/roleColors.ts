@@ -1,12 +1,12 @@
-import { RoleColors, RoleKey } from './IRasciProps';
+import { RoleColors, RoleKey } from './IProcessPanelProps';
 
 /**
- * Colour handling for the role tags.
+ * Colour handling for the role headings.
  *
- * The five fills are authored in the property pane, so nothing about them can
- * be assumed: an author may pick a near-black or a near-white. Both the tag
- * text and the role heading are therefore derived from the fill at render time
- * rather than fixed in the stylesheet.
+ * The five colours are authored in the property pane, so nothing about them can
+ * be assumed: an author may pick a near-black or a near-white. The heading
+ * colour is therefore derived from the authored one at render time rather than
+ * fixed in the stylesheet.
  */
 
 /** The five defaults, as specified. Also the fallback for a malformed value. */
@@ -57,22 +57,13 @@ const luminance = (c: IRgb): number => {
 };
 
 /**
- * Black or white, whichever contrasts better with the fill. The 0.4 threshold
- * (rather than the naive 0.5) is where the crossover actually sits for the
- * mid-tone greens and blues in use here: #6BA244 at 0.5 would be given white
- * text at roughly 2.9:1, where black gives 7.1:1.
- */
-export const textOn = (fill: string): string =>
-  luminance(parseHex(fill) || { r: 0, g: 0, b: 0 }) > 0.4 ? '#1c1c1c' : '#ffffff';
-
-/**
- * A version of the fill light enough to read as heading text on the panel's
- * dark gradient. The hue is kept — the heading and its tags must obviously
+ * A version of the colour light enough to read as heading text on the dark
+ * panel. The hue is kept — the heading and its marker swatch must obviously
  * belong together — and only lightness is raised, by mixing toward white until
  * the luminance clears the target.
  *
  * 0.42 puts the darkest default (#016891, luminance 0.11) at about 8:1 against
- * the panel's lightest gradient stop, comfortably past AA for 13px bold text.
+ * the panel's black background, comfortably past AA for 13px bold text.
  */
 export const onDark = (fill: string): string => {
   const rgb = parseHex(fill);

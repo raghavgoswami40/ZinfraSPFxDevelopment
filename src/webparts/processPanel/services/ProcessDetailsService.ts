@@ -3,7 +3,7 @@
  * distinct from undefined, which here means "not fetched yet". The component
  * prop is typed IProcessStep | null to match. */
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
-import { IProcessStep, IOutputItem, ISubStep } from '../components/IProcessDetailsProps';
+import { IProcessStep, IOutputItem, ISubStep } from '../components/IProcessPanelProps';
 import { ListFieldMap, loadFieldMap, IFieldInfo, isLookupType } from '../../../shared/spFieldNames';
 
 /**
@@ -68,6 +68,11 @@ const asArray = <T>(raw: unknown): T[] => {
 /** "2 Plan" -> "Plan", "2.1 Establish" -> "Establish". */
 export const stripLeadingCode = (value: string): string =>
   (value || '').replace(/^[\d.]+\s*/, '').trim();
+
+/** "PLAN" -> "Plan". Lowercases everything after the first letter, so the list
+ *  can store the phase in any case. */
+const toSentenceCase = (value: string): string =>
+  value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 
 const odata = (value: string): string => value.replace(/'/g, "''");
 
@@ -377,7 +382,7 @@ export class ProcessDetailsService {
       title: base.title,
       // Derived at render time from Phase and Process Group, never stored.
       breadcrumb: [
-        stripLeadingCode(base.phase).toUpperCase(),
+        toSentenceCase(stripLeadingCode(base.phase)),
         stripLeadingCode(base.processGroup),
       ].filter(Boolean).join(' › '),
       purpose: base.purpose,

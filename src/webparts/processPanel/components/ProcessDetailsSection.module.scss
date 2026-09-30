@@ -1,9 +1,8 @@
 /* ── Design tokens (§2) ──────────────────────────────────────────────────── */
-$panel-header-bg: #1c1c1c; // matches Vertical Flow's $dark (its phase-header banner)
-// First stop matches $panel-header-bg exactly (was #000, darker than the header
-// above it, so the header read as visibly lighter than the sliver of body right
-// beneath it) — now the seam is clean rather than a lightness jump.
-$panel-gradient:  linear-gradient(to bottom, #1c1c1c 0%, #1b1b1b 35%, #333 70%, #4a4a4a 100%);
+// One flat surface for header and body, so there is no seam between them.
+$panel-bg: #000000;
+$header-bg: #383838;   // dark-gray banner
+$logo-tile-bg: #252525; // the box behind the header logo
 
 $text-primary:    #ffffff;
 $text-body:       #ffffff; // same as $text-primary today; kept separate so body
@@ -38,41 +37,48 @@ $l4-name-color: $l4-badge-bg; // same exact green as the badge -> ~5.1:1 vs the 
 $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 
 /* ── Panel shell ─────────────────────────────────────────────────────────── */
+/* Corners, shadow and clipping belong to the wrapper in ProcessPanel.module.scss
+   now that both sections share one panel. */
 .panel {
   font-family: $font-stack;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.13), 0 0.3px 0.9px rgba(0, 0, 0, 0.11);
   min-width: 280px;
   box-sizing: border-box;
 
   * { box-sizing: border-box; }
 }
 
-/* Vertical padding matched to Vertical Flow's phaseHeader (10px 18px, 17px
-   text) so the two banners are the same height — font-size stayed the same,
-   only the padding needed to change. */
 .header {
-  background: $panel-header-bg;
+  background: $header-bg;
   padding: 10px 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
+/* The logo: a white line icon in a rounded dark tile. */
 .headerIcon {
-  font-size: 18px;
-  line-height: 1;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: $logo-tile-bg;
+  color: $text-primary;
+
+  svg { width: 18px; height: 18px; }
 }
 
 .headerTitle {
   font-size: 17px;
   font-weight: 600;
+  text-transform: uppercase;
   color: $text-primary;
 }
 
 .body {
-  background: $panel-gradient;
+  background: $panel-bg;
 }
 
 /* ── Title block (§3) ────────────────────────────────────────────────────── */
@@ -111,15 +117,17 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   text-transform: uppercase;
   color: $section-label-color;
   margin-bottom: 8px;
+}
 
-  &::before {
-    content: '';
-    flex: 0 0 auto;
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-    background: $section-label-color;
-  }
+/* Holds the inline SVG for Purpose / Inputs / Outputs. The icon takes the
+   label's own colour through currentColor, so it can never drift from it. */
+.sectionIcon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+
+  svg { width: 100%; height: 100%; }
 }
 
 .purpose {
@@ -142,6 +150,22 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
     font-weight: 600;
     line-height: 1.45;
     color: $text-body;
+  }
+}
+
+/* Inputs: the same bullet list flowed into two columns, filling the first
+   column top to bottom before the second. Columns rather than a grid so a
+   short list still reads down the left side. The bullets sit outside each
+   item's box, so the gap has to be wide enough to hold the second column's
+   bullets clear of the first column's text. */
+.listTwoCol {
+  display: block;
+  columns: 2;
+  column-gap: 28px;
+
+  li {
+    break-inside: avoid;
+    margin-bottom: 6px;
   }
 }
 

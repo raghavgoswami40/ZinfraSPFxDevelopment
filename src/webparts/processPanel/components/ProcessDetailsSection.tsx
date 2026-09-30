@@ -1,11 +1,11 @@
 import * as React from 'react';
-import styles from './ProcessDetails.module.scss';
+import styles from './ProcessDetailsSection.module.scss';
 import {
-  IProcessDetailsProps, IOutputItem, ISubStep,
-} from './IProcessDetailsProps';
+  IProcessDetailsSectionProps, IOutputItem, ISubStep,
+} from './IProcessPanelProps';
+import { PurposeIcon, InputsIcon, OutputsIcon, ProcessDetailsLogo } from './SectionIcons';
 
 const DEFAULT_TITLE = 'Process details';
-const DEFAULT_ICON  = '🧾';
 const DEFAULT_EMPTY_ICON    = '👈';
 const DEFAULT_EMPTY_HEADING = 'Select a process to view details';
 const DEFAULT_EMPTY_BODY    =
@@ -68,7 +68,7 @@ const OutputList: React.FC<{ items: IOutputItem[] }> = ({ items }) => (
   </ul>
 );
 
-const ProcessDetails: React.FC<IProcessDetailsProps> = (props) => {
+const ProcessDetailsSection: React.FC<IProcessDetailsSectionProps> = (props) => {
   const {
     selectedStep,
     isLoading,
@@ -78,7 +78,6 @@ const ProcessDetails: React.FC<IProcessDetailsProps> = (props) => {
     onSubStepToggle,
     onRetry,
     title = DEFAULT_TITLE,
-    headerIcon = DEFAULT_ICON,
     showBreadcrumb = true,
     singleOpenSubStep = true,
     emptyIcon = DEFAULT_EMPTY_ICON,
@@ -190,26 +189,29 @@ const ProcessDetails: React.FC<IProcessDetailsProps> = (props) => {
     return (
       <>
         <div className={styles.titleBlock}>
-          {showBreadcrumb && (
-            <div className={styles.breadcrumb}>
-              {selectedStep.code}
-              {selectedStep.breadcrumb ? ` · ${selectedStep.breadcrumb}` : ''}
-            </div>
+          {showBreadcrumb && selectedStep.breadcrumb && (
+            <div className={styles.breadcrumb}>{selectedStep.breadcrumb}</div>
           )}
-          <h3 className={styles.stepTitle}>{selectedStep.title}</h3>
+          <h3 className={styles.stepTitle}>{selectedStep.code} {selectedStep.title}</h3>
         </div>
 
         {selectedStep.purpose && (
           <div className={styles.section}>
-            <div className={styles.sectionLabel}>Purpose</div>
+            <div className={styles.sectionLabel}>
+              <span className={styles.sectionIcon}><PurposeIcon /></span>
+              Purpose
+            </div>
             <p className={styles.purpose}>{selectedStep.purpose}</p>
           </div>
         )}
 
         {selectedStep.inputs.length > 0 && (
           <div className={styles.section}>
-            <div className={styles.sectionLabel}>Inputs</div>
-            <ul className={styles.list}>
+            <div className={styles.sectionLabel}>
+              <span className={styles.sectionIcon}><InputsIcon /></span>
+              Inputs
+            </div>
+            <ul className={`${styles.list} ${styles.listTwoCol}`}>
               {selectedStep.inputs.map((input, i) => <li key={`${input}_${i}`}>{input}</li>)}
             </ul>
           </div>
@@ -220,12 +222,18 @@ const ProcessDetails: React.FC<IProcessDetailsProps> = (props) => {
             repeated inside every expanded row. */}
         {hasSubSteps ? (
           <div className={styles.l4Block}>
-            <div className={`${styles.sectionLabel} ${styles.l4SectionLabel}`}>Outputs</div>
+            <div className={`${styles.sectionLabel} ${styles.l4SectionLabel}`}>
+              <span className={styles.sectionIcon}><OutputsIcon /></span>
+              Outputs
+            </div>
             {selectedStep.subSteps.map(renderSubStep)}
           </div>
         ) : (
           <div className={styles.section}>
-            <div className={styles.sectionLabel}>Outputs</div>
+            <div className={styles.sectionLabel}>
+              <span className={styles.sectionIcon}><OutputsIcon /></span>
+              Outputs
+            </div>
             <OutputList items={selectedStep.outputs} />
           </div>
         )}
@@ -234,22 +242,16 @@ const ProcessDetails: React.FC<IProcessDetailsProps> = (props) => {
   };
 
   return (
-    <div
-      className={styles.panel}
-      role="region"
-      aria-label={title || DEFAULT_TITLE}
-      data-sticky-role="process-details"
-    >
+    <div className={styles.panel} role="region" aria-label={title || DEFAULT_TITLE}>
       <div className={styles.header}>
-        {headerIcon && <span className={styles.headerIcon} aria-hidden="true">{headerIcon}</span>}
+        <span className={styles.headerIcon} aria-hidden="true"><ProcessDetailsLogo /></span>
         <span className={styles.headerTitle}>{title || DEFAULT_TITLE}</span>
       </div>
       <div className={styles.body}>
         {renderBody()}
-
       </div>
     </div>
   );
 };
 
-export default ProcessDetails;
+export default ProcessDetailsSection;

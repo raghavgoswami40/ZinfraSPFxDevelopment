@@ -1,4 +1,4 @@
-import { IProcessStep } from './IProcessDetailsProps';
+import { IProcessStep } from './IProcessPanelProps';
 
 /**
  * Design-time sample only. Lets the panel be reviewed in its populated states
@@ -44,7 +44,7 @@ const SAP = logo(
 export const SAMPLE_STEP_WITH_SUBSTEPS: IProcessStep = {
   code: '2.1.3',
   title: 'Define Project',
-  breadcrumb: 'PLAN › Establish',
+  breadcrumb: 'Plan › Establish',
   purpose:
     'Establish the agreed scope, objectives and delivery approach for the project so that ' +
     'planning, estimating and contracting activities all work from a single baseline.',
@@ -88,7 +88,7 @@ export const SAMPLE_STEP_WITH_SUBSTEPS: IProcessStep = {
 export const SAMPLE_STEP_FLAT: IProcessStep = {
   code: '2.1.4',
   title: 'Mobilise Delivery Team',
-  breadcrumb: 'PLAN › Establish',
+  breadcrumb: 'Plan › Establish',
   purpose:
     'Stand up the delivery team with clear accountabilities so work can start against the ' +
     'agreed baseline without further hand-offs.',

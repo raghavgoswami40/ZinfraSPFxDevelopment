@@ -1,10 +1,12 @@
 /* ── Design tokens ───────────────────────────────────────────────────────────
-   Header and body are deliberately identical to ProcessDetails.module.scss —
-   the two panels sit side by side, so any drift between them reads as a bug.
-   Copied rather than shared because SPFx compiles one stylesheet per web part
-   bundle; if these ever need to move together, extract a shared partial. */
-$panel-header-bg: #1c1c1c;
-$panel-gradient:  linear-gradient(to bottom, #1c1c1c 0%, #1b1b1b 35%, #333 70%, #4a4a4a 100%);
+   Header and body are deliberately identical to ProcessDetailsSection's own —
+   the two sections stack in the same panel, so any drift between them reads as
+   a bug. Kept as separate token sets (rather than one shared partial) so
+   either section's palette can still diverge on its own later without a hunt
+   through shared variables. */
+$panel-bg: #000000;
+$header-bg: #383838;   // dark-gray banner
+$logo-tile-bg: #252525; // the box behind the header logo
 
 $text-primary:  #ffffff;
 $text-body:     #ffffff;
@@ -19,60 +21,37 @@ $badge-bg: #0f6cbd;
 $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 
 /* ── Panel shell ─────────────────────────────────────────────────────────── */
+/* Corners, shadow, clipping and the trailing margin belong to the wrapper in
+   ProcessPanel.module.scss now that both sections share one panel. */
 .panel {
   font-family: $font-stack;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.13), 0 0.3px 0.9px rgba(0, 0, 0, 0.11);
   min-width: 280px;
   box-sizing: border-box;
-
-  // No gap *above* on purpose. The space between this panel and a Process
-  // Details panel over it is owned entirely by stickyPanel.ts, which measures
-  // both panels live and holds them exactly STICKY_GAP apart in every state.
-  // A static margin here would be added on top of that and on top of whatever
-  // SharePoint's own layout already contributes, which is what made the
-  // unscrolled gap larger than the scrolled one.
-
-  // Trailing room below, matching the breathing space the process hierarchy
-  // leaves under its last phase, and giving the panel somewhere to scroll to at
-  // the end of the section. stickyPanel.ts folds this into the space it reserves
-  // while pinned, so the page keeps the same length in both states.
-  margin-bottom: 48px;
 
   * { box-sizing: border-box; }
 }
 
 .header {
-  background: $panel-header-bg;
+  background: $header-bg;
   padding: 10px 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
+/* The logo: a white line icon in a rounded dark tile. */
 .headerIcon {
-  font-size: 18px;
-  line-height: 1;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: $logo-tile-bg;
+  color: $text-primary;
 
-  // The emoji glyph itself sits low within its own line box relative to the
-  // adjacent Latin text (a quirk of how colour-emoji fonts lay out their
-  // glyphs, not of the flex centring here), so it needs its own nudge up to
-  // align with the header title's optical centre. -2px closed most of the
-  // gap but measurably left it ~1.5px low; -4px was checked against a pixel
-  // measurement of the rendered header (bounding-box and weighted-centroid
-  // both put the "RASCI" text at ~y212 in that capture) and lands within
-  // less than 1px of it.
-  position: relative;
-  top: -4px;
-
-  // Emoji ignore the CSS "color" property — they are full-colour glyphs,
-  // not currentColor-aware icon fonts — so recolouring one to white has to
-  // work on the rendered pixels instead: brightness(0) collapses every opaque
-  // pixel to black while leaving transparency alone, then invert(1) flips that
-  // black to white. The result is a flat white silhouette of whatever glyph is
-  // set here, author-provided emoji included.
-  filter: brightness(0) invert(1);
+  svg { width: 18px; height: 18px; }
 }
 
 .headerTitle {
@@ -82,7 +61,7 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 }
 
 .body {
-  background: $panel-gradient;
+  background: $panel-bg;
 }
 
 /* ── Title block ─────────────────────────────────────────────────────────── */
@@ -100,13 +79,9 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 }
 
 /* ── Role sections ───────────────────────────────────────────────────────── */
-/* One block per role. The separator between roles echoes the L4 rows in the
-   details panel, so the two read as the same family of list. */
+/* One block per role, with no separator between roles. */
 .roleBlock {
   padding: 14px 16px;
-  border-top: 1px solid $divider;
-
-  &:first-child { border-top: none; }
 }
 
 /* Mirrors ProcessDetails' .sectionLabel, except the accent is per-role and so
@@ -122,31 +97,25 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   margin-bottom: 9px;
 }
 
-.roleSwatch {
-  flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-}
+/* Role holders as a bullet list in two columns, styled to match the Inputs
+   list in Process Details. Columns fill top to bottom, so a short list reads
+   down the left side. The bullets sit outside each item's box, so the gap has
+   to be wide enough to hold the second column's bullets clear of the first
+   column's text. */
+.holders {
+  margin: 0;
+  padding-left: 18px;
+  columns: 2;
+  column-gap: 28px;
 
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-/* Filled pill. Background and text colour are both inline: the fill is the
-   author's chosen colour and the text is whichever of black/white contrasts
-   with it, which only JavaScript can work out. */
-.tag {
-  display: inline-block;
-  font-size: 11.5px;
-  font-weight: 600;
-  line-height: 1.35;
-  border-radius: 999px;
-  padding: 4px 11px;
-  white-space: normal;
-  max-width: 100%;
+  li {
+    break-inside: avoid;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.45;
+    color: $text-body;
+  }
 }
 
 /* A role with nobody named against it. Shown rather than hidden: an empty

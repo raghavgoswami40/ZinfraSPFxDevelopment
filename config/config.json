@@ -10,19 +10,11 @@
         }
       ]
     },
-    "process-details-web-part": {
+    "process-panel-web-part": {
       "components": [
         {
-          "entrypoint": "./lib/webparts/processDetails/ProcessDetailsWebPart.js",
-          "manifest": "./src/webparts/processDetails/ProcessDetailsWebPart.manifest.json"
-        }
-      ]
-    },
-    "rasci-web-part": {
-      "components": [
-        {
-          "entrypoint": "./lib/webparts/rasci/RasciWebPart.js",
-          "manifest": "./src/webparts/rasci/RasciWebPart.manifest.json"
+          "entrypoint": "./lib/webparts/processPanel/ProcessPanelWebPart.js",
+          "manifest": "./src/webparts/processPanel/ProcessPanelWebPart.manifest.json"
         }
       ]
     }

@@ -1,8 +1,7 @@
 /**
  * Pins a web part's single rendered panel to the viewport while the page
- * scrolls, so it stays in view beside (or, when stacked, below) much taller
- * content. Shared by Process Details and RASCI — both render exactly one
- * panel as the sole child of their domElement, and need the same behaviour.
+ * scrolls, so it stays in view beside much taller content. Used by Process
+ * Panel, which renders exactly one panel as the sole child of its domElement.
  *
  * Uses `position: fixed`, not `position: sticky`. Sticky can only stick within
  * the nearest *scrolling* ancestor, and in SharePoint the panel sits inside a
@@ -11,12 +10,21 @@
  * viewport-relative, which makes nested scroll containers irrelevant. The cost
  * is that position has to be recomputed on scroll, and the host's domElement
  * has to hold the vacated space so the column does not collapse.
+ *
+ * This used to be shared by two separate web parts — Process Details and
+ * RASCI — stacked on top of each other, which needed extra choreography
+ * (stackFollower/extraTopAnchor host hooks) so the pair gave way to each other
+ * as a unit. Now that they are merged into one Process Panel instance there is
+ * only ever one panel to pin, so that choreography is gone; see git history on
+ * this file for the two-panel version if it is ever needed again.
  */
 
 const DEFAULT_STICKY_TOP = 90;
-/** Breathing room between a pinned panel and whatever edge is anchoring it —
- *  the section it sits in, or (when stacked) the panel above it. */
+/** Breathing room between a pinned panel and the section it sits in. */
 export const STICKY_GAP = 12;
+/** A pinned panel shorter than this is not worth pinning — it would be a
+ *  sliver too small to read, so it stays in normal flow instead. */
+const STICKY_MIN_BAND = 200;
 /** Below this the section stacks into one column, where pinning would cover
  *  the content beside a panel. */
 const STICKY_MIN_WIDTH = 768;
@@ -45,8 +53,7 @@ const STICKY_TRAVEL_SLACK = 240;
 
 /**
  * The canvas column `el` sits in, or undefined when it is not on a modern
- * canvas. Shared by the column-bounds walk and the stack lookups below, so that
- * "the same column" means the same thing to all of them.
+ * canvas.
  */
 const nearestColumn = (el: HTMLElement): HTMLElement | undefined => {
   let cursor: HTMLElement | null = el.parentElement;
@@ -59,30 +66,6 @@ const nearestColumn = (el: HTMLElement): HTMLElement | undefined => {
   return undefined;
 };
 
-/**
- * Whether two panels share a canvas column. Document order alone is not enough
- * to call one panel the other's neighbour: a page can hold the same pair of web
- * parts in a second column, or in a later section, and stacking against one of
- * those would position a panel against something nowhere near it on screen.
- *
- * Two panels outside any recognised column are treated as sharing one, so a
- * non-canvas host keeps whatever behaviour document order gives it.
- */
-const sameColumn = (a: HTMLElement, b: HTMLElement): boolean =>
-  nearestColumn(a) === nearestColumn(b);
-
-/** Geometry of the panel stacked directly beneath a sticky panel. */
-export interface IStackFollower {
-  /**
-   * Top edge of the follower's reserved slot, in viewport pixels — its host
-   * element, not its panel. The panel may be fixed or relatively nudged; the
-   * slot is neither, so this moves only with scroll and content.
-   */
-  slotTop: number;
-  /** The follower panel's own natural height. */
-  height: number;
-}
-
 export interface IStickyPanelHost {
   /** The web part's own domElement — reserves the vacated space and anchors
    *  the fixed panel's left/width to its normal-flow slot. */
@@ -94,32 +77,6 @@ export interface IStickyPanelHost {
   isEditMode: () => boolean;
   /** Gap this panel asks for from the top of the viewport or section. */
   topOffset: () => number;
-  /**
-   * An additional floor for the pin position, in viewport pixels — e.g. the
-   * bottom edge of another panel this one must stack beneath. Combined with
-   * topOffset via max(), so whichever is more restrictive wins. Returns
-   * undefined when there is nothing to stack under.
-   */
-  extraTopAnchor?: () => number | undefined;
-  /**
-   * Geometry of the panel stacked directly *beneath* this one, if any — its
-   * reserved slot's top edge and its natural height.
-   *
-   * Drives how far this panel gives way. While the pair fits the visible band
-   * it gives way not at all and pins as it would alone. When the pair does not
-   * fit, holding the pin would park the follower below the fold for good —
-   * scrolling cannot move a fixed panel — so this panel slides up to keep its
-   * bottom exactly STICKY_GAP above the follower's slot, and is clipped to its
-   * section so none of what has slid past the top edge is painted over the page
-   * header.
-   *
-   * Both values are read from the follower's *slot*, never its rendered panel,
-   * so both are pure functions of scroll and content and are unmoved by either
-   * panel's pin state. That is what keeps the two controllers from feeding into
-   * each other: the dependency runs strictly one way — this panel, then the
-   * follower — and settles in a single pass.
-   */
-  stackFollower?: () => IStackFollower | undefined;
   /** Gate for the console diagnostics dump. Omit to disable it entirely. */
   diagnosticsEnabled?: () => boolean;
   /** Prefix for diagnostic console messages, e.g. "Process Details". */
@@ -187,6 +144,8 @@ export class StickyPanelController {
       // In normal flow the scrolling box clips the panel itself, so the clip
       // applied while it was sliding out has to come off with the rest.
       s.clipPath = '';
+      s.maxHeight = '';
+      s.overflowY = '';
     }
     this._host.domElement.style.height = '';
   }
@@ -366,7 +325,10 @@ export class StickyPanelController {
       return;
     }
 
-    const panelH = panel.offsetHeight;
+    // The panel's full content height, not its rendered height: while pinned it
+    // may be capped and scrolling inside itself, and offsetHeight would then
+    // report the cap. scrollHeight is the same as offsetHeight when uncapped.
+    const panelH = panel.scrollHeight;
     if (panelH === 0) { return; } // not laid out yet; the next render will catch it
 
     // Where the panel sits in normal flow. While pinned, the host's domElement
@@ -380,30 +342,24 @@ export class StickyPanelController {
 
     const column = this._columnBounds(panelH);
     const port = this._scrollPort();
-    let portRect = port ? port.getBoundingClientRect() : undefined;
-
-    // Only treat the scroll port as "the section" if it is actually big enough
-    // to hold the panel. A small scrolling ancestor is some inner widget, not
-    // the section, and letting it drive the bounds squeezes the usable band
-    // below the panel height — which silently prevents pinning entirely.
-    if (portRect && portRect.height < panelH + STICKY_GAP) { portRect = undefined; }
+    const portRect = port ? port.getBoundingClientRect() : undefined;
 
     // "Top of the section" is the scroll box's own top edge when the section
     // scrolls independently — that edge is stable, whereas the tall content
     // inside it slides away. Only when nothing nested scrolls does the column
     // stand in for it. Either way the offset still applies once that edge has
     // scrolled up past it, so the panel keeps clearing SharePoint's chrome.
+    //
+    // The port is used whatever its height. It used to be discarded when
+    // shorter than the panel, on the theory that such a port was some inner
+    // widget — but every scroller found here is an *ancestor* of the panel, so
+    // it is the page's own scroll region. Discarding it for a tall panel dropped
+    // the top edge back to the column's, which has long since scrolled away, and
+    // the panel then pinned above the page header.
     const sectionTop = portRect ? portRect.top : column.top;
 
-    // The panel's own floor, independent of anything it might be stacked
-    // beneath. Kept deliberately separate from `ceiling` below: an anchor can
-    // legitimately sit far down an unscrolled page (its bottom edge measured
-    // in raw viewport pixels can be a large number simply because nothing has
-    // scrolled yet), and folding that into the "is this panel too tall for the
-    // screen" test below would misclassify a perfectly short panel as needing
-    // bottom-anchored behaviour — which is exactly what let RASCI drift out of
-    // its pin logic entirely and scroll straight past Process Details.
-    const baseCeiling = Math.max(top, sectionTop + STICKY_GAP);
+    // The panel's own ceiling — the highest point it may pin to.
+    const ceiling = Math.max(top, sectionTop + STICKY_GAP);
 
     // The panel also must not hang below the visible bottom of the section.
     const visibleBottom = Math.min(
@@ -411,179 +367,52 @@ export class StickyPanelController {
       portRect ? portRect.bottom - STICKY_GAP : Infinity
     );
 
-    const tallerThanViewport = panelH > visibleBottom - baseCeiling;
-
-    // ── Give way, continuously, to the panel stacked beneath ───────────────
-    //
-    // Both panels of a stack can only hold their pins while the pair fits the
-    // visible band. When it does not, this panel has to surrender its position
-    // — otherwise the follower is parked below the fold for good, since page
-    // scrolling cannot move a fixed panel.
-    //
-    // It surrenders by *sliding*, not by letting go. `followerPush` is the pin
-    // position at which this panel's bottom sits exactly STICKY_GAP above the
-    // follower's own slot, so as the follower rises this panel rides up with
-    // it, one pixel per pixel, and the follower travels at its natural scroll
-    // rate the whole way. An earlier version released the pin outright the
-    // moment the follower reached it; that is continuous while scrolling, but
-    // it snaps hundreds of pixels when the *follower* is what changes — select
-    // a step, the follower grows, the pair stops fitting, and the panel is
-    // dropped from its pin to wherever its flow position had scrolled to. The
-    // slide turns that into a shift of just the height the follower gained.
-    //
-    // Sliding takes this panel above its section's top edge, which on its own
-    // would float it over the page header. It is clipped to the section below
-    // to prevent exactly that, so the rule the clipping upholds is the visible
-    // one — nothing of this panel is ever painted outside its section — rather
-    // than a restriction on where it may be positioned.
-    //
-    // Read from the follower's reserved slot and natural height, never its
-    // rendered position: both are pure functions of scroll and content and so
-    // are unmoved by either panel's pin state. The dependency stays one-way —
-    // this panel, then the follower — and settles in a single pass.
-    const follower = this._host.stackFollower && this._host.stackFollower();
-    let followerPush: number | undefined;
-    if (follower && follower.height > 0) {
-      // A tall panel holds its bottom at visibleBottom rather than its top at
-      // baseCeiling, so that is where its pinned bottom would actually land.
-      // Without this a tall leader would push the follower's ceiling clean off
-      // the screen and it could never appear at all.
-      const wouldBePinnedBottom = tallerThanViewport ? visibleBottom : baseCeiling + panelH;
-      const pairFits = wouldBePinnedBottom + STICKY_GAP + follower.height <= visibleBottom;
-      if (!pairFits) {
-        followerPush = follower.slotTop - STICKY_GAP - panelH;
-      }
-    }
-
-    // A second panel stacked beneath another (RASCI under Process Details)
-    // must never rise above that other panel's current bottom edge, whether it
-    // is pinned or still in normal flow — this is what keeps the pair in a
-    // fixed top-to-bottom order regardless of scroll position. Folded in only
-    // here, for the actual pin position — never into baseCeiling above.
-    const extraAnchor = this._host.extraTopAnchor && this._host.extraTopAnchor();
-    const ceiling = Math.max(
-      baseCeiling,
-      extraAnchor !== undefined ? extraAnchor + STICKY_GAP : -Infinity
-    );
-
-    // Whether the anchor is the floor actually in force, rather than merely
-    // present. Once the panel above has released and scrolled away, its bottom
-    // edge rises past baseCeiling and stops constraining anything — from that
-    // point this panel is standalone in every respect that matters, and the
-    // clamps below have to treat it that way.
-    const anchorBinds = extraAnchor !== undefined && extraAnchor + STICKY_GAP > baseCeiling;
+    // The room the pinned panel has: from its ceiling down to the visible
+    // bottom. A `position: fixed` panel never reveals more of itself as the page
+    // scrolls, so one taller than this band would lose its lower rows for good.
+    // It is instead capped to the band and scrolls inside itself, which keeps
+    // every row reachable and keeps it pinned however tall its content gets.
+    const band = visibleBottom - ceiling;
+    const capped = panelH > band;
+    const shownH = capped ? band : panelH;
 
     let pinTop: number | undefined;
 
-    if (anchorBinds && tallerThanViewport) {
-      // Stacked and too tall for the band even on its own. Pinning could only
-      // hold its top at the anchor floor and leave the rest below the fold,
-      // unreachable. Left in normal flow instead, where the page scroll reaches
-      // every row of it — it forfeits pinning, which is the lesser loss.
-    } else if (!tallerThanViewport) {
-      // Short panel: pin as soon as its natural position rises above the ceiling.
-      if (slot.top < ceiling) { pinTop = ceiling; }
-    } else {
-      // Tall panel: let it scroll along until its bottom edge reaches the bottom
-      // of the visible area, then hold it there — the chosen behaviour.
-      if (slot.top + panelH < visibleBottom) {
-        pinTop = Math.max(visibleBottom - panelH, ceiling);
-      }
+    // A band too small to be usable (a very short window, or the section
+    // scrolled almost out of view) is left in normal flow rather than pinned
+    // as a sliver.
+    if (band >= STICKY_MIN_BAND && slot.top < ceiling) {
+      // Pin as soon as the panel's natural position rises above the ceiling.
+      pinTop = ceiling;
     }
 
     if (pinTop === undefined) {
-      // Not pinned — but for a panel stacked beneath another, "not pinned"
-      // only means the ordinary hard-pin trigger (slot.top < ceiling) hasn't
-      // fired yet, which happens whenever the natural gap below the anchor is
-      // already *at least* STICKY_GAP. Left alone, that gap is whatever the
-      // page's own layout happens to produce — a static CSS margin can only
-      // guess at it, and any margin bigger than what SharePoint's own spacing
-      // already adds shows up as exactly the oversized "unscrolled" gap this
-      // is fixing. So pull the panel up to sit at exactly `ceiling` instead of
-      // leaving the excess in place.
-      //
-      // Strictly a pull *up*, never a push down. Closing an oversized gap is
-      // the whole point; pushing a panel down to meet the anchor would glue a
-      // panel that has no room to pin onto the anchor's bottom edge, so the
-      // page scroll could never reach its lower half — the very thing the
-      // fits-under-anchor test above is avoiding.
-      //
-      // `position: relative` rather than a margin: it repositions the panel
-      // purely visually, without feeding back into the very
-      // domElement.getBoundingClientRect() measurement this math is based on.
-      if (extraAnchor !== undefined && !tallerThanViewport) {
-        // Straight to the ceiling, with no column clamp. For an anchored panel
-        // that clamp could only ever ask for a position *above* the anchor's
-        // bottom edge — the overlap this whole mechanism exists to prevent —
-        // so it is a no-op here at best. (An earlier revision took a
-        // Math.max() against the column's end, which on a roomy column is a
-        // far larger number and shoved the panel hundreds of pixels down the
-        // page: the "RASCI is missing at the top of the page" bug.)
-        const delta = Math.round(ceiling - slot.top);
-
-        if (delta <= 0) {
-          this._host.domElement.style.height = ''; // normal flow, nothing reserved
-
-          const s = panel.style;
-          s.position = delta !== 0 ? 'relative' : '';
-          s.top = delta !== 0 ? `${delta}px` : '';
-          s.left = '';
-          s.width = '';
-          s.zIndex = '';
-
-          this._logSticky(
-            'anchored-unpinned',
-            `not pinned, but holding the anchor gap by nudging ${delta}px — slotTop ` +
-            `${Math.round(slot.top)}px, ceiling ${Math.round(ceiling)}px, ` +
-            `anchor bottom ${Math.round(extraAnchor)}px`,
-            isEditMode
-          );
-          return;
-        }
-      }
-
       this.clear();
       this._logSticky(
         'unpinned',
         `unpinned — slotTop ${Math.round(slot.top)}px vs ceiling ${Math.round(ceiling)}px, ` +
-        `visibleBottom ${Math.round(visibleBottom)}px, ` +
-        `${tallerThanViewport ? 'bottom' : 'top'}-anchor mode, ` +
+        `visibleBottom ${Math.round(visibleBottom)}px, band ${Math.round(band)}px, ` +
         `scrollPort ${port ? `${port.tagName.toLowerCase()} ${Math.round(port.getBoundingClientRect().height)}px tall` : 'none'}`,
         isEditMode
       );
       return;
     }
 
-    // Ride up with the end of the column rather than floating past it. Normally
-    // this wins over the ceiling outright: at the very end of a section the
-    // panel has to leave, even if that means going above the section top.
-    //
-    // The exception is a panel whose anchor is still binding — letting the
-    // column win there would lift it above the anchor's bottom edge, the
-    // overlap this whole mechanism exists to prevent, so the column may only
-    // push it *down* to its own end. Gated on `anchorBinds` rather than on the
-    // anchor merely existing: once the panel above has released and risen out
-    // of the way, this panel needs the ordinary clamp back, or it never leaves
-    // the end of the section and floats over whatever follows it.
-    if (column.bottom - panelH < pinTop) {
-      pinTop = anchorBinds
-        ? Math.max(ceiling, column.bottom - panelH)
-        : column.bottom - panelH;
+    // Ride up with the end of the column rather than floating past it. At the
+    // very end of a section the panel has to leave, even if that means going
+    // above the section top.
+    if (column.bottom - shownH < pinTop) {
+      pinTop = column.bottom - shownH;
     }
-
-    // Give way to the panel beneath, as computed above. Applied last and only
-    // downward, so it can shorten this panel's stay at the top but never extend
-    // it past any of the bounds already settled.
-    if (followerPush !== undefined && followerPush < pinTop) { pinTop = followerPush; }
 
     // Once it has slid far enough that none of it is left inside the section,
     // there is nothing to show and no reason to hold it fixed — hand it back to
     // the flow so it scrolls away like ordinary content.
-    if (pinTop + panelH <= sectionTop) {
+    if (pinTop + shownH <= sectionTop) {
       this.clear();
       this._logSticky(
         'pushed-out',
-        `slid out of the section for the panel beneath — would pin at ` +
+        `slid out of the section — would pin at ` +
         `${Math.round(pinTop)}px, section top ${Math.round(sectionTop)}px`,
         isEditMode
       );
@@ -607,6 +436,11 @@ export class StickyPanelController {
     s.width = `${slot.width}px`;
     s.zIndex = '10';
 
+    // Too tall for the band: cap it there and let it scroll inside itself. The
+    // overflow is on the panel, whose own rounded-corner clipping still applies.
+    s.maxHeight = capped ? `${Math.floor(band)}px` : '';
+    s.overflowY = capped ? 'auto' : '';
+
     // Hide whatever has slid above the section's top edge. A fixed panel is not
     // clipped by the scrolling box it came from, so without this the part that
     // has given way would be painted over the page header — the one thing the
@@ -615,80 +449,13 @@ export class StickyPanelController {
     const hiddenAbove = sectionTop - pinTop;
     s.clipPath = hiddenAbove > 0 ? `inset(${Math.ceil(hiddenAbove)}px 0 0 0)` : '';
 
-    // Nothing caps the panel's height here. A panel only reaches this point when
-    // pinning it leaves what is visible of it fully readable: this panel slides
-    // out of the way when the pair would not fit, and the anchored-and-too-tall
-    // branch declines to pin a follower that cannot fit on its own. So neither
-    // needs clipping at the bottom or a scrollbar of its own.
-
     this._logSticky(
-      `pinned-${tallerThanViewport ? 'bottom' : 'top'}-${port ? 'port' : 'page'}`,
-      `pinned at ${Math.round(pinTop)}px (${tallerThanViewport ? 'bottom' : 'top'}-anchored) — ` +
-      `scrollPort ${port ? `${port.tagName.toLowerCase()}.${(port.className || '').toString().slice(0, 30)} top ${Math.round(port.getBoundingClientRect().top)}px h${Math.round(port.getBoundingClientRect().height)}${portRect ? '' : ' (ignored, too short)'}` : 'none (the page scrolls)'}, ` +
+      `pinned-${capped ? 'capped' : 'full'}-${port ? 'port' : 'page'}`,
+      `pinned at ${Math.round(pinTop)}px (${capped ? `capped to ${Math.round(band)}px of ${Math.round(panelH)}px, scrolls inside` : 'full height'}) — ` +
+      `scrollPort ${port ? `${port.tagName.toLowerCase()}.${(port.className || '').toString().slice(0, 30)} top ${Math.round(port.getBoundingClientRect().top)}px h${Math.round(port.getBoundingClientRect().height)}` : 'none (the page scrolls)'}, ` +
       `column [${column.label}] top ${Math.round(column.top)}px bottom ${Math.round(column.bottom)}px, ` +
-      `ceiling ${Math.round(ceiling)}px` +
-      (extraAnchor !== undefined ? `, stacked below anchor at ${Math.round(extraAnchor)}px` : ''),
+      `ceiling ${Math.round(ceiling)}px`,
       isEditMode
     );
   }
 }
-
-/**
- * Marker attribute set on a panel that another web part may need to stack
- * beneath. A data attribute rather than a shared CSS class because the two
- * panels compile from separate SCSS modules with independently hashed class
- * names — this is the one thing about a panel's identity meant to be read
- * across web part bundles.
- */
-export const STICKY_ROLE_ATTR = 'data-sticky-role';
-
-/**
- * Finds the bottom edge (in viewport pixels) of the nearest panel carrying
- * `role` that precedes `before` in the document — i.e. the one this element
- * should stack directly beneath. Works whether that panel is currently pinned
- * (fixed) or still in normal flow, since both report their true on-screen
- * position through getBoundingClientRect(). Returns undefined when no such
- * panel exists yet (not rendered, removed, or this one comes first).
- */
-export const findStackAnchorBottom = (role: string, before: HTMLElement): number | undefined => {
-  const candidates = document.querySelectorAll<HTMLElement>(`[${STICKY_ROLE_ATTR}="${role}"]`);
-  // querySelectorAll returns nodes in document order, so the last one that
-  // precedes `before` is the closest preceding match.
-  let anchor: HTMLElement | undefined;
-  candidates.forEach((el) => {
-    // eslint-disable-next-line no-bitwise
-    const precedes = el.compareDocumentPosition(before) & Node.DOCUMENT_POSITION_FOLLOWING;
-    if (precedes && sameColumn(el, before)) { anchor = el; }
-  });
-  return anchor ? anchor.getBoundingClientRect().bottom : undefined;
-};
-
-/**
- * The mirror of findStackAnchorBottom: the first panel carrying `role` that
- * *follows* `after` in the document and shares its column — the panel stacked
- * directly beneath this one.
- *
- * Reports the follower's reserved slot top and its panel's natural height,
- * never the panel's rendered position. Both are therefore untouched by the
- * follower's own pin state, which is what lets the panel above read them
- * without the two controllers feeding into each other.
- *
- * Returns undefined when there is no such panel, it has not been laid out yet,
- * or it sits in another column — each meaning "nothing stacked beneath", which
- * drops the caller onto its standalone behaviour.
- */
-export const findStackFollower = (role: string, after: HTMLElement): IStackFollower | undefined => {
-  const candidates = document.querySelectorAll<HTMLElement>(`[${STICKY_ROLE_ATTR}="${role}"]`);
-  for (let i = 0; i < candidates.length; i++) {
-    const el = candidates[i];
-    // eslint-disable-next-line no-bitwise
-    const follows = after.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING;
-    // First match wins here, unlike the anchor lookup above: document order
-    // makes the earliest following panel the nearest one beneath.
-    if (follows && el.offsetHeight > 0 && sameColumn(el, after)) {
-      const slot = el.parentElement || el;
-      return { slotTop: slot.getBoundingClientRect().top, height: el.offsetHeight };
-    }
-  }
-  return undefined;
-};

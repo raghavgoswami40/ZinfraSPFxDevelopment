@@ -3,7 +3,7 @@
   "solution": {
     "name": "vertical-flow-client-side-solution",
     "id": "ee0788b2-0064-4423-884a-1296e6054318",
-    "version": "1.4.0.0",
+    "version": "1.5.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
@@ -30,7 +30,7 @@
         "title": "vertical-flow Feature",
         "description": "The feature that activates elements of the vertical flow solution.",
         "id": "0701154f-d899-4132-bc18-8052adc7913a",
-        "version": "1.4.0.0"
+        "version": "1.5.0.0"
       }
     ]
   },

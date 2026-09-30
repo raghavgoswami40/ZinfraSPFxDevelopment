@@ -4,7 +4,7 @@
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import {
   IRasciRecord, RoleKey, ROLE_ORDER, ROLE_META,
-} from '../components/IRasciProps';
+} from '../components/IProcessPanelProps';
 import {
   ListFieldMap, loadFieldMap, IFieldInfo, isLookupType,
 } from '../../../shared/spFieldNames';
