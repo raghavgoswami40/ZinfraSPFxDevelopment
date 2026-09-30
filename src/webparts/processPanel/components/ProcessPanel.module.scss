@@ -1,0 +1,24 @@
+/* The single pinned unit: StickyPanelController expects the sole child of the
+   web part's domElement, so both sections render inside this one wrapper. It
+   owns the panel's shape (corners, shadow, clipping) so the two sections read
+   as one surface. */
+.wrapper {
+  display: block;
+  background: #000000;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.13), 0 0.3px 0.9px rgba(0, 0, 0, 0.11);
+  min-width: 280px;
+  box-sizing: border-box;
+
+  // Only shows when the pinned panel is taller than the screen and scrolls
+  // inside itself (see stickyPanel.ts).
+  scrollbar-width: thin;
+  scrollbar-color: #5a5a5a #000000;
+
+  // Trailing room below, matching the breathing space the process hierarchy
+  // leaves under its last phase, and giving the panel somewhere to scroll to at
+  // the end of the section. stickyPanel.ts folds this into the space it reserves
+  // while pinned, so the page keeps the same length in both states.
+  margin-bottom: 48px;
+}
