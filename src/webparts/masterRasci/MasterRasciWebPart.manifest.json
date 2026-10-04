@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/client-side-building-blocks/webpart-manifest.schema.json",
+  "id": "7c2e4d91-5a3b-4f68-b0d7-9e1a6c3f8b24",
+  "alias": "MasterRasciWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": [
+    "SharePointWebPart"
+  ],
+  "supportsThemeVariants": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+      "group": {
+        "default": "Other"
+      },
+      "title": {
+        "default": "Master RASCI"
+      },
+      "description": {
+        "default": "Filterable Master RASCI matrix: who is Accountable, Responsible, Support, Consulted or Informed for each project process"
+      },
+      "officeFabricIconFontName": "Table",
+      "properties": {
+        "listTitle": "RASCI",
+        "documentRef": "GS-PM-ST-001",
+        "defaultView": "list",
+        "collapseAfter": 3,
+        "labelPhase": "Phase",
+        "labelSearch": "Search process",
+        "labelGroup": "Process group",
+        "labelRole": "View as role",
+        "labelViewList": "By process",
+        "labelViewMatrix": "Matrix"
+      }
+    }
+  ]
+}

@@ -1,0 +1,561 @@
+/* ── Design tokens (from the Master RASCI handoff; colours come from the source
+   workbook). The page background is white and the web part must not paint one,
+   so only the two panels are dark. ─────────────────────────────────────────── */
+$panel:        #0E1013;
+$panel-raised: #171A1F;
+$input-bg:     #1A1D22;
+$border:       #2A2F36;
+$input-border: #4A525C;
+$group-bg:     #12304A;
+$group-border: #1E4668;
+$brand:        #2DAFE3;
+$link:         #2DAFE3;
+$highlight:    #FFC000;
+
+$text:        #F2F4F7;
+$muted:       #9AA5B1;
+$dash:        #6B7580;
+$placeholder: #8A95A1;
+$group-text:  #BFDDF5;
+$group-count: #9CB8CF;
+
+$font: 'Century Gothic', 'Segoe UI', system-ui, sans-serif;
+
+@mixin label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: $muted;
+}
+
+.root {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+  font-family: $font;
+  color: #1F2933;
+
+  * { box-sizing: border-box; }
+  button, select, input { font-family: inherit; }
+}
+
+.panel {
+  background: $panel;
+  border: 1px solid $border;
+  border-radius: 6px;
+  color: $text;
+}
+
+/* ── Filters ─────────────────────────────────────────────────────────────── */
+.filters {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.phaseRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.phaseLabel {
+  @include label;
+  color: #FFFFFF;
+  width: 112px;
+  flex: none;
+}
+
+.phaseBtn {
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid $input-border;
+  background: transparent;
+  color: $text;
+  border-radius: 4px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1.3;
+
+  &:hover { filter: brightness(.96); }
+}
+
+.phaseBtnOn {
+  background: $brand;
+  border-color: $brand;
+  color: #fff;
+}
+
+.phaseCount {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: .85;
+}
+
+.divider {
+  height: 1px;
+  background: $border;
+}
+
+.fieldRow {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 16px;
+  align-items: flex-end;
+
+  /* The three filters share one row; only on a phone-width screen is there no
+     room for that, so they stack there instead of being squeezed unreadable. */
+  @media (max-width: 720px) {
+    flex-wrap: wrap;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 0;
+  min-width: 0;
+
+  @media (max-width: 720px) {
+    flex: 1 1 100%;
+  }
+}
+
+.fieldLabel {
+  @include label;
+  color: #FFFFFF;
+}
+
+.control {
+  height: 38px;
+  border: 1px solid $input-border;
+  border-radius: 4px;
+  padding: 0 12px;
+  font-size: 14px;
+  background: $input-bg;
+  color: $text;
+
+  &:focus { outline: 2px solid $link; outline-offset: 0; }
+  &::placeholder { color: $placeholder; }
+}
+
+.select { padding: 0 8px; }
+
+.badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.clearBtn {
+  cursor: pointer;
+  height: 38px;
+  border: none;
+  background: transparent;
+  color: $link;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: underline;
+  padding: 0 4px;
+
+  &:focus-visible { outline: 2px solid $link; outline-offset: 0; }
+}
+
+/* ── Results ─────────────────────────────────────────────────────────────── */
+.results { overflow: hidden; }
+
+.resultsHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid $border;
+}
+
+.resultsCount { font-size: 15px; }
+.resultsMuted { color: $muted; }
+
+.viewToggle {
+  display: flex;
+  border: 1px solid $brand;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.viewBtn {
+  cursor: pointer;
+  border: none;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  background: transparent;
+  color: #9CCBF0;
+
+  &:focus-visible { outline: 2px solid $link; outline-offset: -2px; }
+}
+
+.viewBtnOn {
+  background: $brand;
+  color: #fff;
+}
+
+.empty {
+  padding: 48px 20px;
+  text-align: center;
+  color: $muted;
+  font-size: 15px;
+}
+
+/* ── By activity ─────────────────────────────────────────────────────────── */
+.scrollX { overflow-x: auto; }
+.listInner { min-width: 1040px; }
+
+.listGrid {
+  display: grid;
+  /* --act-col is set once the reader drags the Activity column's edge. */
+  grid-template-columns: var(--act-col, minmax(240px, 1.5fr)) repeat(5, minmax(0, 1fr));
+}
+
+.listHeader {
+  background: $panel-raised;
+  border-bottom: 1px solid $border;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* Positioned so the resize handle can sit on the column's right edge. */
+.listHeadActivity {
+  position: relative;
+  @include label;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+}
+
+.listHeadCode {
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* The bar spans the full table width, so it cannot itself be sticky: it would
+   have no room to move. The label inside is what stays put while the table
+   scrolls sideways. */
+.groupHead {
+  background: $group-bg;
+  border-bottom: 1px solid $group-border;
+}
+
+.groupHeadLabel {
+  position: sticky;
+  left: 0;
+  display: inline-flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  color: $group-text;
+}
+
+.groupCount {
+  font-size: 12px;
+  font-weight: 400;
+  color: $group-count;
+}
+
+.row {
+  border-bottom: 1px solid $border;
+  background: $panel;
+
+  &:hover { background: $panel-raised; }
+}
+
+.rowOpen { background: $panel-raised; }
+
+.rowToggle {
+  cursor: pointer;
+
+  &:focus-visible { outline: 2px solid $link; outline-offset: -2px; }
+}
+
+.rowTitleCell {
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rowTitle {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.rowSub {
+  font-size: 12px;
+  color: $muted;
+  line-height: 1.3;
+}
+
+.codeCell {
+  padding: 10px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-content: flex-start;
+}
+
+.codeCellMine { background: rgba(255, 192, 0, .14); }
+
+.chip {
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 4px 8px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  font-weight: 400;
+}
+
+.more {
+  font-size: 12px;
+  padding: 4px 4px;
+  color: $link;
+  font-weight: 700;
+}
+
+.dash {
+  font-size: 13px;
+  color: $dash;
+  padding: 3px 0;
+}
+
+/* ── Matrix ──────────────────────────────────────────────────────────────── */
+.matrixScroll {
+  overflow: auto;
+  max-height: 720px;
+}
+
+.matrixGrid {
+  display: grid;
+  width: max-content;
+  min-width: 100%;
+}
+
+.mCorner {
+  grid-column: 1;
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  background: $panel;
+  border-bottom: 1px solid $border;
+  padding: 10px 20px;
+  @include label;
+  display: flex;
+  align-items: flex-end;
+}
+
+.mBand {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 29px;
+  background: $brand;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 8px;
+  border-left: 1px solid #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.mCornerSpacer {
+  grid-column: 1;
+  position: sticky;
+  left: 0;
+  top: 29px;
+  z-index: 4;
+  background: $panel;
+  border-bottom: 1px solid $border;
+  height: 150px;
+}
+
+.mRoleHead {
+  position: sticky;
+  top: 29px;
+  z-index: 2;
+  background: $panel-raised;
+  border-bottom: 1px solid $border;
+  border-left: 1px solid $border;
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  color: $text;
+}
+
+.mRoleHeadMine {
+  background: $highlight;
+  color: #000;
+}
+
+.mRoleName {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* As .groupHead: the bar spans every column, the label inside is the sticky part. */
+.mGroupHead {
+  grid-column: 1 / -1;
+  background: $group-bg;
+}
+
+.mGroupHeadLabel {
+  position: sticky;
+  left: 0;
+  display: inline-block;
+  padding: 7px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: $group-text;
+}
+
+/* Drag handle on the Activity column's right edge. The visible line is thin, the
+   hit area wider. */
+.resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 5;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 25%;
+    bottom: 25%;
+    left: 4px;
+    width: 1px;
+    background: $input-border;
+  }
+
+  &:hover::after, &:focus-visible::after, &.resizerActive::after {
+    background: $link;
+    width: 3px;
+    left: 3px;
+  }
+
+  &:focus-visible { outline: none; }
+}
+
+.mActivity {
+  grid-column: 1;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: $panel;
+  border-bottom: 1px solid $border;
+  padding: 6px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 36px;
+  box-shadow: 1px 0 0 $border;
+}
+
+.mActivityTitle {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.mActivitySub {
+  font-size: 11px;
+  color: $muted;
+  line-height: 1.25;
+}
+
+.mCell {
+  border-bottom: 1px solid $border;
+  border-left: 1px solid $border;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+}
+
+.mCellMine { background: rgba(255, 192, 0, .16); }
+
+.mBadge {
+  width: 100%;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 4px 0;
+}
+
+/* ── Footer, loading, error ──────────────────────────────────────────────── */
+.footer {
+  font-size: 12px;
+  color: $muted;
+  padding: 0 4px;
+}
+
+.skeleton {
+  padding: 8px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeletonRow {
+  height: 44px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, $panel-raised 25%, #22262d 50%, $panel-raised 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonRow { animation: none; }
+}

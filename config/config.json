@@ -17,6 +17,14 @@
           "manifest": "./src/webparts/processPanel/ProcessPanelWebPart.manifest.json"
         }
       ]
+    },
+    "master-rasci-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/masterRasci/MasterRasciWebPart.js",
+          "manifest": "./src/webparts/masterRasci/MasterRasciWebPart.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},
