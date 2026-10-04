@@ -10,6 +10,7 @@
     "SharePointWebPart"
   ],
   "supportsThemeVariants": true,
+  "supportsFullBleed": true,
   "preconfiguredEntries": [
     {
       "groupId": "5c03119e-3074-46fd-976b-c60198311f70",

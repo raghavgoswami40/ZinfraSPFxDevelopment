@@ -30,8 +30,7 @@ $font: 'Century Gothic', 'Segoe UI', system-ui, sans-serif;
 }
 
 .root {
-  max-width: 1480px;
-  margin: 0 auto;
+  width: 100%;
   padding: 24px;
   display: flex;
   flex-direction: column;
