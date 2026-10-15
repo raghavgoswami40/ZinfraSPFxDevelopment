@@ -3,31 +3,36 @@ import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { MessageBarButton } from '@fluentui/react/lib/Button';
 import styles from './MasterRasci.module.scss';
 import {
-  IMasterRasciProps, IMasterRasciData, IFilterState, RasciView,
+  IMasterRasciProps, IMasterRasciData, IFilterState, RasciView, ChipCode,
 } from './IMasterRasciProps';
-import { EMPTY_FILTERS, filterRows } from './masterRasciModel';
+import { EMPTY_FILTERS, filterRows, hasActiveFilters } from './masterRasciModel';
+import { SearchIcon, ListIcon, MatrixIcon } from './icons';
 import FilterPanel from './FilterPanel';
 import ActivityListView from './ActivityListView';
 import MatrixView from './MatrixView';
+import { ThemeContext, ThemeName, readStoredTheme, storeTheme } from './theme';
 
 const cx = (...names: Array<string | false | undefined>): string =>
   names.filter(Boolean).join(' ');
 
 // ── Shareable filters ───────────────────────────────────────────────────────
-// ?phase=&group=&role=&q=&view= — the role travels by name, not by index,
+// ?phase=&group=&role=&code=&q=&view= — the role travels by name, not by index,
 // because indexes shift whenever the list gains a role.
 
-const PARAMS = ['phase', 'group', 'role', 'q', 'view'];
+const PARAMS = ['phase', 'group', 'role', 'code', 'q', 'view'];
+const VALID_CODES = ['A', 'R', 'S', 'C', 'I'];
 
 const readUrl = (): { filters: Partial<IFilterState> & { roleName?: string }; view?: RasciView } => {
   try {
     const p = new URLSearchParams(window.location.search);
     const view = p.get('view');
+    const code = (p.get('code') || '').toUpperCase();
     return {
       filters: {
         phase: p.get('phase') || undefined,
         group: p.get('group') || undefined,
         roleName: p.get('role') || undefined,
+        code: VALID_CODES.indexOf(code) !== -1 ? (code as ChipCode) : undefined,
         q: p.get('q') || undefined,
       },
       view: view === 'matrix' || view === 'list' ? view : undefined,
@@ -44,6 +49,7 @@ const writeUrl = (data: IMasterRasciData, f: IFilterState, view: RasciView, defa
     if (f.phase !== 'All') { p.set('phase', f.phase); }
     if (f.group !== 'All') { p.set('group', f.group); }
     if (f.role >= 0 && data.roles[f.role]) { p.set('role', data.roles[f.role].name); }
+    if (f.code) { p.set('code', f.code); }
     if (f.q) { p.set('q', f.q); }
     if (view !== defaultView) { p.set('view', view); }
     const qs = p.toString();
@@ -75,20 +81,22 @@ const resolveInitial = (
     phase: group !== 'All' ? groups[group] : (phaseWanted || 'All'),
     group,
     role,
+    code: fromUrl.code || '',
     q: fromUrl.q || '',
   };
 };
 
 // ── Component ───────────────────────────────────────────────────────────────
 
-const MasterRasci: React.FC<IMasterRasciProps> = ({
-  load, listTitle, documentRef, defaultView, collapseAfter, labels,
+const MasterRasciBody: React.FC<IMasterRasciProps> = ({
+  load, listTitle, defaultView, collapseAfter, labels,
 }) => {
   const [data, setData] = React.useState<IMasterRasciData | undefined>(undefined);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [attempt, setAttempt] = React.useState(0);
   const [filters, setFilters] = React.useState<IFilterState>(EMPTY_FILTERS);
   const [activityWidth, setActivityWidth] = React.useState<number | undefined>(undefined);
+  const [collapsed, setCollapsed] = React.useState<{ [group: string]: boolean }>({});
   const [view, setView] = React.useState<RasciView>(readUrl().view || defaultView);
 
   React.useEffect(() => {
@@ -121,6 +129,23 @@ const MasterRasci: React.FC<IMasterRasciProps> = ({
 
   const rows = React.useMemo(() => (data ? filterRows(data, filters) : []), [data, filters]);
 
+  // Groups present in the current result, for the collapse-all toggle.
+  const groupNames = React.useMemo(() => {
+    const seen: string[] = [];
+    rows.forEach((r) => { if (seen.indexOf(r.group) === -1) { seen.push(r.group); } });
+    return seen;
+  }, [rows]);
+  const allCollapsed = groupNames.length > 0 && groupNames.every((g) => collapsed[g]);
+
+  const toggleGroup = (group: string): void =>
+    setCollapsed((prev) => ({ ...prev, [group]: !prev[group] }));
+  const toggleAll = (): void =>
+    setCollapsed((prev) => {
+      const next = { ...prev };
+      groupNames.forEach((g) => { next[g] = !allCollapsed; });
+      return next;
+    });
+
   const pickView = (v: RasciView): void => {
     userPickedView.current = true;
     setView(v);
@@ -143,9 +168,9 @@ const MasterRasci: React.FC<IMasterRasciProps> = ({
   if (!data) {
     return (
       <div className={styles.root}>
-        <div className={cx(styles.panel, styles.results)} aria-busy="true" aria-label="Loading the Master RASCI">
-          <div className={styles.resultsHead}>
-            <div className={cx(styles.resultsCount, styles.resultsMuted)}>Loading processes&hellip;</div>
+        <div className={styles.card} aria-busy="true" aria-label="Loading the Master RASCI">
+          <div className={styles.bar}>
+            <div className={cx(styles.count, styles.muted)}>Loading processes&hellip;</div>
           </div>
           <div className={styles.skeleton}>
             {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className={styles.skeletonRow} />)}
@@ -156,46 +181,66 @@ const MasterRasci: React.FC<IMasterRasciProps> = ({
   }
 
   const role = filters.role;
-  const roleNote = role >= 0 && data.roles[role] ? `  ·  viewing as ${data.roles[role].name}` : '';
+  const roleName = role >= 0 && data.roles[role] ? data.roles[role].name : '';
+  const filtered = hasActiveFilters(filters);
 
   return (
     <div className={styles.root}>
-      <FilterPanel data={data} filters={filters} onChange={setFilters} labels={labels} />
+      <section className={styles.card}>
+        <FilterPanel data={data} filters={filters} onChange={setFilters} labels={labels} />
 
-      <div className={cx(styles.panel, styles.results)}>
-        <div className={styles.resultsHead}>
-          <div className={styles.resultsCount} aria-live="polite">
-            <span style={{ fontWeight: 700 }}>{rows.length}</span>{' '}
-            <span className={styles.resultsMuted}>of {data.rows.length} processes</span>
-            <span className={styles.resultsMuted}>{roleNote}</span>
+        <div className={styles.bar}>
+          <div className={styles.count} aria-live="polite">
+            <strong>{rows.length}</strong>
+            <span className={styles.muted}> of {data.rows.length} processes</span>
+            {roleName && <span className={styles.rolePill}>Viewing as {roleName}</span>}
           </div>
-          <div className={styles.viewToggle} role="group" aria-label="View">
+          <div className={styles.seg} role="group" aria-label="View">
             <button
               type="button"
               aria-pressed={view === 'list'}
-              className={cx(styles.viewBtn, view === 'list' && styles.viewBtnOn)}
+              className={cx(styles.segBtn, view === 'list' && styles.segBtnOn)}
               onClick={() => pickView('list')}
-            >{labels.viewList}</button>
+            ><ListIcon />{labels.viewList}</button>
             <button
               type="button"
               aria-pressed={view === 'matrix'}
-              className={cx(styles.viewBtn, view === 'matrix' && styles.viewBtnOn)}
+              className={cx(styles.segBtn, view === 'matrix' && styles.segBtnOn)}
               onClick={() => pickView('matrix')}
-            >{labels.viewMatrix}</button>
+            ><MatrixIcon />{labels.viewMatrix}</button>
           </div>
         </div>
 
         {rows.length === 0 && (
           <div className={styles.empty}>
-            {data.rows.length === 0
-              ? `The “${listTitle}” list has no processes yet.`
-              : 'No processes match these filters.'}
+            <div className={styles.emptyIcon}><SearchIcon /></div>
+            {data.rows.length === 0 ? (
+              <div className={styles.emptyTitle}>The &ldquo;{listTitle}&rdquo; list has no processes yet</div>
+            ) : (
+              <>
+                <div className={styles.emptyTitle}>No processes match these filters</div>
+                <div className={styles.emptyBody}>Remove a filter or try a broader search.</div>
+                {filtered && (
+                  <button type="button" className={styles.emptyBtn} onClick={() => setFilters(EMPTY_FILTERS)}>
+                    Clear all filters
+                  </button>
+                )}
+              </>
+            )}
           </div>
         )}
         {rows.length > 0 && view === 'list' && (
-          <ActivityListView data={data} rows={rows} role={role} collapseAfter={collapseAfter}
+          <ActivityListView
+            data={data}
+            rows={rows}
+            role={role}
+            collapseAfter={collapseAfter}
             activityWidth={activityWidth}
             onActivityWidthChange={setActivityWidth}
+            collapsed={collapsed}
+            onToggleGroup={toggleGroup}
+            onToggleAll={toggleAll}
+            allCollapsed={allCollapsed}
           />
         )}
         {rows.length > 0 && view === 'matrix' && (
@@ -205,13 +250,31 @@ const MasterRasci: React.FC<IMasterRasciProps> = ({
             role={role}
             activityWidth={activityWidth}
             onActivityWidthChange={setActivityWidth}
+            collapsed={collapsed}
+            onToggleGroup={toggleGroup}
+            onToggleAll={toggleAll}
+            allCollapsed={allCollapsed}
           />
         )}
-      </div>
+      </section>
 
-      <div className={styles.footer}>
-        {documentRef ? `${documentRef} · ` : ''}Data source: SharePoint list &ldquo;{listTitle}&rdquo;. A/R = Accountable and Responsible.
-      </div>
+    </div>
+  );
+};
+
+/** The wrapper is the size container the scale unit is measured against. */
+const MasterRasci: React.FC<IMasterRasciProps> = (props) => {
+  const [theme, setThemeState] = React.useState<ThemeName>(readStoredTheme);
+  const value = React.useMemo(() => ({
+    theme,
+    setTheme: (t: ThemeName): void => { storeTheme(t); setThemeState(t); },
+  }), [theme]);
+
+  return (
+    <div className={styles.scope} data-mr-scope="" data-theme={theme}>
+      <ThemeContext.Provider value={value}>
+        <MasterRasciBody {...props} />
+      </ThemeContext.Provider>
     </div>
   );
 };

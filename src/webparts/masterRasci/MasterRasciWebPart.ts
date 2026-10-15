@@ -17,13 +17,13 @@ import { MasterRasciService } from './services/MasterRasciService';
 
 export interface IMasterRasciWebPartProps {
   listTitle: string;
-  documentRef: string;
   defaultView: RasciView;
   collapseAfter: number;
   labelPhase?: string;
   labelSearch?: string;
   labelGroup?: string;
   labelRole?: string;
+  labelCode?: string;
   labelViewList?: string;
   labelViewMatrix?: string;
 }
@@ -70,6 +70,7 @@ export default class MasterRasciWebPart extends BaseClientSideWebPart<IMasterRas
       search: pick(p.labelSearch, DEFAULT_LABELS.search),
       group: pick(p.labelGroup, DEFAULT_LABELS.group),
       role: pick(p.labelRole, DEFAULT_LABELS.role),
+      code: pick(p.labelCode, DEFAULT_LABELS.code),
       viewList: pick(p.labelViewList, DEFAULT_LABELS.viewList),
       viewMatrix: pick(p.labelViewMatrix, DEFAULT_LABELS.viewMatrix),
     };
@@ -80,7 +81,6 @@ export default class MasterRasciWebPart extends BaseClientSideWebPart<IMasterRas
     const element: React.ReactElement<IMasterRasciProps> = React.createElement(MasterRasci, {
       load: this._getLoader(),
       listTitle: this._listTitle,
-      documentRef: (this.properties.documentRef || '').trim(),
       defaultView: this.properties.defaultView === 'matrix' ? 'matrix' : 'list',
       collapseAfter: collapse >= 1 ? Math.floor(collapse) : DEFAULT_COLLAPSE_AFTER,
       labels: this._labels,
@@ -110,10 +110,6 @@ export default class MasterRasciWebPart extends BaseClientSideWebPart<IMasterRas
                   description: 'Title of the SharePoint list on this site that holds the RASCI.',
                   placeholder: DEFAULT_LIST,
                 }),
-                PropertyPaneTextField('documentRef', {
-                  label: 'Document reference',
-                  description: 'Shown in the footer, e.g. GS-PM-ST-001. Leave empty to hide.',
-                }),
               ],
             },
             {
@@ -123,6 +119,7 @@ export default class MasterRasciWebPart extends BaseClientSideWebPart<IMasterRas
                 PropertyPaneTextField('labelSearch', { label: 'Search filter', placeholder: DEFAULT_LABELS.search }),
                 PropertyPaneTextField('labelGroup', { label: 'Process group filter', placeholder: DEFAULT_LABELS.group }),
                 PropertyPaneTextField('labelRole', { label: 'Role filter', placeholder: DEFAULT_LABELS.role }),
+                PropertyPaneTextField('labelCode', { label: 'Involvement filter', placeholder: DEFAULT_LABELS.code }),
                 PropertyPaneTextField('labelViewList', { label: 'First view toggle', placeholder: DEFAULT_LABELS.viewList }),
                 PropertyPaneTextField('labelViewMatrix', { label: 'Second view toggle', placeholder: DEFAULT_LABELS.viewMatrix }),
               ],

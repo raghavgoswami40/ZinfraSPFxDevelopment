@@ -1,9 +1,10 @@
 import * as React from 'react';
 import styles from './MasterRasci.module.scss';
 import ColumnResizer from './ColumnResizer';
+import { ChevronIcon, CollapseAllIcon, ExpandAllIcon } from './icons';
 import { IMasterRasciData, IRasciActivity } from './IMasterRasciProps';
 import {
-  CODES, HIGHLIGHT, GroupedRow, columnEntries, groupRows,
+  LIST_COLUMNS, HIGHLIGHT, GroupedRow, columnEntries, groupRows,
 } from './masterRasciModel';
 
 interface IActivityListViewProps {
@@ -16,10 +17,26 @@ interface IActivityListViewProps {
   /** Activity column width in px; undefined = the default flexible width. */
   activityWidth: number | undefined;
   onActivityWidthChange: (width: number | undefined) => void;
+  /** Process groups the reader has folded up, by name. */
+  collapsed: { [group: string]: boolean };
+  onToggleGroup: (group: string) => void;
+  onToggleAll: () => void;
+  allCollapsed: boolean;
 }
 
 const cx = (...names: Array<string | false | undefined>): string =>
   names.filter(Boolean).join(' ');
+
+/** An L3 that has L4 steps beneath it and no RASCI of its own: a heading row with
+ *  empty cells, so the steps below read as its group. */
+const L3HeadRow: React.FC<{ title: string }> = ({ title }) => (
+  <div className={cx(styles.listGrid, styles.row, styles.rowHeadOnly)}>
+    <div className={styles.rowTitleCell}>
+      <div className={cx(styles.rowTitle, styles.rowTitleL3)}>{title}</div>
+    </div>
+    {LIST_COLUMNS.map((c) => <div key={c.code} className={styles.codeCell} />)}
+  </div>
+);
 
 const ActivityRow: React.FC<{
   row: IRasciActivity;
@@ -28,8 +45,14 @@ const ActivityRow: React.FC<{
   collapseAfter: number;
   open: boolean;
   onToggle: (id: number) => void;
-}> = ({ row, data, role, collapseAfter, open, onToggle }) => {
-  const cols = CODES.map((c) => ({ meta: c, entries: columnEntries(row, c.code, role) }));
+  /** 3 = a process, 4 = a step beneath one. */
+  level: 3 | 4;
+  /** An L3 whose steps follow it. */
+  parent: boolean;
+  /** Last row of its L3 group: the border under it is the stronger one. */
+  blockEnd: boolean;
+}> = ({ row, data, role, collapseAfter, open, onToggle, level, parent, blockEnd }) => {
+  const cols = LIST_COLUMNS.map((c) => ({ meta: c, entries: columnEntries(row, c.code, role) }));
   // Only a row that is hiding something (or has been opened) has anything to toggle.
   const expandable = open || cols.some((c) => c.entries.length > collapseAfter);
 
@@ -37,7 +60,13 @@ const ActivityRow: React.FC<{
 
   return (
     <div
-      className={cx(styles.listGrid, styles.row, open && styles.rowOpen, expandable && styles.rowToggle)}
+      className={cx(
+        styles.listGrid, styles.row,
+        parent && styles.rowParent,
+        blockEnd && styles.rowEnd,
+        open && styles.rowOpen,
+        expandable && styles.rowToggle
+      )}
       // Clicking anywhere on the row expands every cell in it.
       onClick={expandable ? toggle : undefined}
       onKeyDown={expandable ? (e) => {
@@ -47,9 +76,11 @@ const ActivityRow: React.FC<{
       tabIndex={expandable ? 0 : undefined}
       aria-expanded={expandable ? open : undefined}
     >
-      <div className={styles.rowTitleCell}>
-        <div className={styles.rowTitle}>{row.activity || row.process}</div>
-        {row.activity && <div className={styles.rowSub}>{row.process}</div>}
+      <div className={cx(styles.rowTitleCell, level === 4 && styles.rowTitleCellL4)}>
+        <div className={cx(styles.rowTitle, level === 4 ? styles.rowTitleL4 : styles.rowTitleL3)}>
+          {level === 4 ? row.activity : row.process}
+        </div>
+        {open && <div className={styles.showLess} aria-hidden="true">Show less</div>}
       </div>
 
       {cols.map(({ meta, entries }) => {
@@ -68,12 +99,12 @@ const ActivityRow: React.FC<{
                     background: isMine ? HIGHLIGHT : meta.chipBg,
                     color: isMine ? '#000' : meta.chipFg,
                     borderColor: isMine ? HIGHLIGHT : meta.color,
-                    boxShadow: isMine ? `0 0 0 2px #0E1013, 0 0 0 4px ${HIGHLIGHT}` : 'none',
-                    fontWeight: isMine ? 700 : 400,
+                    boxShadow: isMine ? `0 0 0 2px var(--mr-card), 0 0 0 4px ${HIGHLIGHT}` : 'none',
+                    fontWeight: isMine ? 700 : 600,
                     opacity: role >= 0 && !isMine ? 0.5 : 1,
                   }}
                 >
-                  {data.roles[e.role].name}{e.code === 'AR' ? ' (A/R)' : ''}
+                  {data.roles[e.role].name}
                 </span>
               );
             })}
@@ -88,6 +119,7 @@ const ActivityRow: React.FC<{
 
 const ActivityListView: React.FC<IActivityListViewProps> = ({
   data, rows, role, collapseAfter, activityWidth, onActivityWidthChange,
+  collapsed, onToggleGroup, onToggleAll, allCollapsed,
 }) => {
   const [open, setOpen] = React.useState<{ [id: number]: boolean }>({});
   const grouped: GroupedRow[] = React.useMemo(() => groupRows(rows), [rows]);
@@ -104,10 +136,19 @@ const ActivityListView: React.FC<IActivityListViewProps> = ({
       >
         <div className={cx(styles.listGrid, styles.listHeader)}>
           <div className={styles.listHeadActivity}>
-            Process
+            <span>Process</span>
+            <button
+              type="button"
+              className={styles.collapseAllBtn}
+              onClick={onToggleAll}
+              title={allCollapsed ? 'Expand all process groups' : 'Collapse all process groups'}
+              aria-label={allCollapsed ? 'Expand all process groups' : 'Collapse all process groups'}
+            >
+              {allCollapsed ? <ExpandAllIcon /> : <CollapseAllIcon />}
+            </button>
             <ColumnResizer onChange={onActivityWidthChange} />
           </div>
-          {CODES.map((c) => (
+          {LIST_COLUMNS.map((c) => (
             <div key={c.code} className={styles.listHeadCode}>
               <span className={styles.badge} style={{ background: c.color, color: c.fg }}>{c.code}</span>
               {c.name}
@@ -115,24 +156,41 @@ const ActivityListView: React.FC<IActivityListViewProps> = ({
           ))}
         </div>
 
-        {grouped.map((g) => g.kind === 'head' ? (
-          <div key={g.key} className={styles.groupHead}>
-            <span className={styles.groupHeadLabel}>
-              {g.title}
-              <span className={styles.groupCount}>{g.count} {g.count === 1 ? 'process' : 'processes'}</span>
-            </span>
-          </div>
-        ) : (
-          <ActivityRow
-            key={g.key}
-            row={g.row}
-            data={data}
-            role={role}
-            collapseAfter={collapseAfter}
-            open={!!open[g.row.id]}
-            onToggle={toggle}
-          />
-        ))}
+        {grouped.map((g) => {
+          if (g.kind === 'head') {
+            // The whole bar is the click target; the button inside is the keyboard stop
+            // (its click bubbles up to the bar, so Enter and Space toggle once).
+            return (
+              <div key={g.key} className={cx(styles.listGrid, styles.groupHead)} onClick={() => onToggleGroup(g.title)}>
+                <div className={styles.groupHeadLead}>
+                  <button type="button" className={styles.groupHeadLabel} aria-expanded={!collapsed[g.title]}>
+                    <span className={cx(styles.chev, collapsed[g.title] && styles.chevCollapsed)}><ChevronIcon /></span>
+                    {g.title}
+                  </button>
+                </div>
+                <div className={styles.groupHeadRest} />
+              </div>
+            );
+          }
+          if (g.kind === 'l3') {
+            return collapsed[g.group] ? null : <L3HeadRow key={g.key} title={g.title} />;
+          }
+          if (collapsed[g.row.group]) { return null; }
+          return (
+            <ActivityRow
+              key={g.key}
+              row={g.row}
+              data={data}
+              role={role}
+              collapseAfter={collapseAfter}
+              open={!!open[g.row.id]}
+              onToggle={toggle}
+              level={g.level}
+              parent={g.parent}
+              blockEnd={g.blockEnd}
+            />
+          );
+        })}
       </div>
     </div>
   );

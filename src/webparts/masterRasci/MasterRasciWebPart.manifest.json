@@ -26,13 +26,13 @@
       "officeFabricIconFontName": "Table",
       "properties": {
         "listTitle": "RASCI",
-        "documentRef": "GS-PM-ST-001",
         "defaultView": "list",
         "collapseAfter": 3,
         "labelPhase": "Phase",
         "labelSearch": "Search process",
         "labelGroup": "Process group",
         "labelRole": "View as role",
+        "labelCode": "Involvement",
         "labelViewList": "By process",
         "labelViewMatrix": "Matrix"
       }

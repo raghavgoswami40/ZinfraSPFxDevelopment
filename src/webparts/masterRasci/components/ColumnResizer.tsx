@@ -1,12 +1,14 @@
 import * as React from 'react';
 import styles from './MasterRasci.module.scss';
+import { scaleOf } from './scale';
 
 export const MIN_ACTIVITY_WIDTH = 200;
 export const MAX_ACTIVITY_WIDTH = 720;
 const KEY_STEP = 16;
 
-const clamp = (w: number): number =>
-  Math.max(MIN_ACTIVITY_WIDTH, Math.min(MAX_ACTIVITY_WIDTH, Math.round(w)));
+/** The limits are in normal-size pixels; on a large screen they grow with the scale. */
+const clamp = (w: number, k: number): number =>
+  Math.max(MIN_ACTIVITY_WIDTH * k, Math.min(MAX_ACTIVITY_WIDTH * k, Math.round(w)));
 
 interface IColumnResizerProps {
   /** Called with the new width in px, or undefined to go back to the default. */
@@ -45,14 +47,14 @@ const ColumnResizer: React.FC<IColumnResizerProps> = ({ onChange }) => {
         setActive(true);
       }}
       onPointerMove={(e) => {
-        if (drag.current) { onChange(clamp(drag.current.width + e.clientX - drag.current.x)); }
+        if (drag.current) { onChange(clamp(drag.current.width + e.clientX - drag.current.x, scaleOf(ref.current))); }
       }}
       onPointerUp={() => { drag.current = undefined; setActive(false); }}
       onPointerCancel={() => { drag.current = undefined; setActive(false); }}
       onDoubleClick={() => onChange(undefined)}
       onKeyDown={(e) => {
-        if (e.key === 'ArrowLeft') { e.preventDefault(); onChange(clamp(currentWidth() - KEY_STEP)); }
-        else if (e.key === 'ArrowRight') { e.preventDefault(); onChange(clamp(currentWidth() + KEY_STEP)); }
+        if (e.key === 'ArrowLeft') { e.preventDefault(); onChange(clamp(currentWidth() - KEY_STEP * scaleOf(ref.current), scaleOf(ref.current))); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); onChange(clamp(currentWidth() + KEY_STEP * scaleOf(ref.current), scaleOf(ref.current))); }
         else if (e.key === 'Escape') { onChange(undefined); }
       }}
     />

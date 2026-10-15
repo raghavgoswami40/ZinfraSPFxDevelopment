@@ -45,6 +45,7 @@ export interface IFilterState {
   phase: string;          // 'All' or a phase value
   group: string;          // 'All' or a process group value
   role: number;           // -1 for all roles, else an index into roles
+  code: ChipCode | '';    // '' for any involvement, else R / A / S / C / I
   q: string;
 }
 
@@ -54,6 +55,7 @@ export interface IMasterRasciLabels {
   search: string;
   group: string;
   role: string;
+  code: string;
   viewList: string;
   viewMatrix: string;
 }
@@ -63,6 +65,7 @@ export const DEFAULT_LABELS: IMasterRasciLabels = {
   search: 'Search process',
   group: 'Process group',
   role: 'View as role',
+  code: 'Involvement',
   viewList: 'By process',
   viewMatrix: 'Matrix',
 };
@@ -71,7 +74,6 @@ export interface IMasterRasciProps {
   /** Resolves the data; the component owns loading and error state. */
   load: () => Promise<IMasterRasciData>;
   listTitle: string;
-  documentRef: string;
   defaultView: RasciView;
   collapseAfter: number;
   labels: IMasterRasciLabels;

@@ -30,16 +30,22 @@ export const CODES: ICodeMeta[] = [
   { code: 'I', name: 'Informed',    color: '#B3BE35', fg: '#0B1B26', chipBg: '#B3BE35', chipFg: '#0B1B26' },
 ];
 
-export const HIGHLIGHT = '#FFC000';
+/** By process shows Responsible first, then Accountable. The order of CODES itself
+ *  stays A R S C I, because the Matrix looks colours up by position. */
+export const LIST_COLUMNS: ICodeMeta[] = [CODES[1], CODES[0], CODES[2], CODES[3], CODES[4]];
+
+/** The "view as role" highlight. A CSS variable, so it is pale aqua on the dark theme and a
+ *  deeper aqua on the light one (the pale one would not show on white). */
+export const HIGHLIGHT = 'var(--mr-highlight)';
 
 /** AR is both Accountable and Responsible; every other code matches only itself. */
 export const codeMatches = (held: RasciCode, wanted: ChipCode): boolean =>
   held === wanted || (held === 'AR' && (wanted === 'A' || wanted === 'R'));
 
-export const EMPTY_FILTERS: IFilterState = { phase: 'All', group: 'All', role: -1, q: '' };
+export const EMPTY_FILTERS: IFilterState = { phase: 'All', group: 'All', role: -1, code: '', q: '' };
 
 export const hasActiveFilters = (f: IFilterState): boolean =>
-  f.phase !== 'All' || f.group !== 'All' || f.role >= 0 || f.q !== '';
+  f.phase !== 'All' || f.group !== 'All' || f.role >= 0 || f.code !== '' || f.q !== '';
 
 /** (roleIndex, code) pairs for an activity, in role order. */
 export const assignmentsOf = (row: IRasciActivity): Array<{ role: number; code: RasciCode }> => {
@@ -69,6 +75,13 @@ export const filterRows = (
       return false;
     }
     if (f.role >= 0 && r.assignments[f.role] === undefined) { return false; }
+    if (f.code !== '') {
+      // With a role chosen: that role must hold the code. Without: any role may.
+      const wanted = f.code;
+      const hit = assignmentsOf(r).some((a) =>
+        (f.role < 0 || a.role === f.role) && codeMatches(a.code, wanted));
+      if (!hit) { return false; }
+    }
     return true;
   });
 };
@@ -108,24 +121,57 @@ export const phaseOfGroup = (data: IMasterRasciData, group: string): string | un
   return undefined;
 };
 
-/** A heading row followed by its activities, in display order. */
+/**
+ * What the two tables draw, top to bottom:
+ *  - head: an L2 process group ("2.1 Establish")
+ *  - l3:   an L3 that has L4 steps but no RASCI row of its own; drawn as a heading
+ *          row with empty cells
+ *  - row:  a RASCI row. level 3 is a process, level 4 a step beneath one. `parent`
+ *          marks an L3 whose steps follow, `blockEnd` the last row of an L3 group.
+ */
 export type GroupedRow =
-  | { kind: 'head'; key: string; title: string; count: number }
-  | { kind: 'row'; key: string; row: IRasciActivity };
+  | { kind: 'head'; key: string; title: string }
+  | { kind: 'l3'; key: string; group: string; title: string }
+  | { kind: 'row'; key: string; row: IRasciActivity; level: 3 | 4; parent: boolean; blockEnd: boolean };
 
-/** Inserts a heading each time the process group changes. */
+/** Inserts an L2 heading when the process group changes, and gathers each L3 with
+ *  its L4 steps into one block. Rows arrive sorted by process code, so the rows of
+ *  one L3 are already next to each other. */
 export const groupRows = (rows: IRasciActivity[]): GroupedRow[] => {
-  const counts: { [g: string]: number } = {};
-  rows.forEach((r) => { counts[r.group] = (counts[r.group] || 0) + 1; });
+  const blocks: Array<{ group: string; process: string; rows: IRasciActivity[] }> = [];
+  rows.forEach((r) => {
+    const last = blocks.length > 0 ? blocks[blocks.length - 1] : undefined;
+    if (last && last.group === r.group && last.process === r.process) { last.rows.push(r); }
+    else { blocks.push({ group: r.group, process: r.process, rows: [r] }); }
+  });
 
   const out: GroupedRow[] = [];
-  let last: string | undefined;
-  rows.forEach((r) => {
-    if (r.group !== last) {
-      last = r.group;
-      out.push({ kind: 'head', key: 'h:' + r.group + ':' + r.id, title: r.group, count: counts[r.group] });
+  let lastGroup: string | undefined;
+  blocks.forEach((b) => {
+    if (b.group !== lastGroup) {
+      lastGroup = b.group;
+      out.push({ kind: 'head', key: 'h:' + b.group + ':' + b.rows[0].id, title: b.group });
     }
-    out.push({ kind: 'row', key: 'r:' + r.id, row: r });
+
+    const steps = b.rows.filter((r) => r.activity !== '');
+    const own = b.rows.filter((r) => r.activity === '')[0];
+
+    if (steps.length === 0) {
+      // A process with no steps: one ordinary row.
+      b.rows.forEach((r, i) => out.push({
+        kind: 'row', key: 'r:' + r.id, row: r, level: 3, parent: false, blockEnd: i === b.rows.length - 1,
+      }));
+      return;
+    }
+
+    if (own) {
+      out.push({ kind: 'row', key: 'r:' + own.id, row: own, level: 3, parent: true, blockEnd: false });
+    } else {
+      out.push({ kind: 'l3', key: 'l3:' + b.group + ':' + b.process + ':' + steps[0].id, group: b.group, title: b.process });
+    }
+    steps.forEach((r, i) => out.push({
+      kind: 'row', key: 'r:' + r.id, row: r, level: 4, parent: false, blockEnd: i === steps.length - 1,
+    }));
   });
   return out;
 };
