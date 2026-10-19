@@ -4,7 +4,7 @@ import ColumnResizer from './ColumnResizer';
 import { ChevronIcon, CollapseAllIcon, ExpandAllIcon } from './icons';
 import { IMasterRasciData, IRasciActivity } from './IMasterRasciProps';
 import {
-  LIST_COLUMNS, HIGHLIGHT, GroupedRow, columnEntries, groupRows,
+  LIST_COLUMNS, HIGHLIGHT, GroupedRow, columnEntries, groupRows, isHidden, phaseKey,
 } from './masterRasciModel';
 
 interface IActivityListViewProps {
@@ -141,8 +141,8 @@ const ActivityListView: React.FC<IActivityListViewProps> = ({
               type="button"
               className={styles.collapseAllBtn}
               onClick={onToggleAll}
-              title={allCollapsed ? 'Expand all process groups' : 'Collapse all process groups'}
-              aria-label={allCollapsed ? 'Expand all process groups' : 'Collapse all process groups'}
+              title={allCollapsed ? 'Expand all' : 'Collapse all'}
+              aria-label={allCollapsed ? 'Expand all' : 'Collapse all'}
             >
               {allCollapsed ? <ExpandAllIcon /> : <CollapseAllIcon />}
             </button>
@@ -157,7 +157,22 @@ const ActivityListView: React.FC<IActivityListViewProps> = ({
         </div>
 
         {grouped.map((g) => {
+          if (g.kind === 'phase') {
+            const key = phaseKey(g.title);
+            return (
+              <div key={g.key} className={cx(styles.listGrid, styles.phaseHead)} onClick={() => onToggleGroup(key)}>
+                <div className={styles.phaseHeadLead}>
+                  <button type="button" className={styles.phaseHeadLabel} aria-expanded={!collapsed[key]}>
+                    <span className={cx(styles.chev, collapsed[key] && styles.chevCollapsed)}><ChevronIcon /></span>
+                    {g.title}
+                  </button>
+                </div>
+                <div className={styles.phaseHeadRest} />
+              </div>
+            );
+          }
           if (g.kind === 'head') {
+            if (collapsed[phaseKey(g.phase)]) { return null; }
             // The whole bar is the click target; the button inside is the keyboard stop
             // (its click bubbles up to the bar, so Enter and Space toggle once).
             return (
@@ -173,9 +188,9 @@ const ActivityListView: React.FC<IActivityListViewProps> = ({
             );
           }
           if (g.kind === 'l3') {
-            return collapsed[g.group] ? null : <L3HeadRow key={g.key} title={g.title} />;
+            return isHidden(collapsed, g.phase, g.group) ? null : <L3HeadRow key={g.key} title={g.title} />;
           }
-          if (collapsed[g.row.group]) { return null; }
+          if (isHidden(collapsed, g.row.phase, g.row.group)) { return null; }
           return (
             <ActivityRow
               key={g.key}

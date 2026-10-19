@@ -5,7 +5,7 @@ import ColumnResizer from './ColumnResizer';
 import { scaleOf } from './scale';
 import { ChevronIcon, CollapseAllIcon, ExpandAllIcon } from './icons';
 import {
-  CODES, HIGHLIGHT, groupRows, visibleRoles, roleBands,
+  CODES, HIGHLIGHT, groupRows, visibleRoles, roleBands, isHidden, phaseKey,
 } from './masterRasciModel';
 
 interface IMatrixViewProps {
@@ -101,8 +101,8 @@ const MatrixView: React.FC<IMatrixViewProps> = ({
             type="button"
             className={styles.collapseAllBtn}
             onClick={onToggleAll}
-            title={allCollapsed ? 'Expand all process groups' : 'Collapse all process groups'}
-            aria-label={allCollapsed ? 'Expand all process groups' : 'Collapse all process groups'}
+            title={allCollapsed ? 'Expand all' : 'Collapse all'}
+            aria-label={allCollapsed ? 'Expand all' : 'Collapse all'}
           >
             {allCollapsed ? <ExpandAllIcon /> : <CollapseAllIcon />}
           </button>
@@ -132,7 +132,22 @@ const MatrixView: React.FC<IMatrixViewProps> = ({
         ))}
 
         {grouped.map((g) => {
+          if (g.kind === 'phase') {
+            const key = phaseKey(g.title);
+            return (
+              <React.Fragment key={g.key}>
+                <div className={styles.mPhaseLead} onClick={() => onToggleGroup(key)}>
+                  <button type="button" className={styles.phaseHeadLabel} aria-expanded={!collapsed[key]}>
+                    <span className={cx(styles.chev, collapsed[key] && styles.chevCollapsed)}><ChevronIcon /></span>
+                    {g.title}
+                  </button>
+                </div>
+                <div className={styles.mPhaseRest} onClick={() => onToggleGroup(key)} />
+              </React.Fragment>
+            );
+          }
           if (g.kind === 'head') {
+            if (collapsed[phaseKey(g.phase)]) { return null; }
             return (
               <React.Fragment key={g.key}>
                 <div className={styles.mGroupLead} onClick={() => onToggleGroup(g.title)}>
@@ -147,7 +162,7 @@ const MatrixView: React.FC<IMatrixViewProps> = ({
           }
           if (g.kind === 'l3') {
             // An L3 with steps and no RASCI of its own: a heading row, empty cells.
-            return collapsed[g.group] ? null : (
+            return isHidden(collapsed, g.phase, g.group) ? null : (
               <React.Fragment key={g.key}>
                 <div className={cx(styles.mActivity, styles.mActivityHead)}>
                   <div className={cx(styles.mActivityTitle, styles.mTitleL3)}>{g.title}</div>
@@ -156,7 +171,7 @@ const MatrixView: React.FC<IMatrixViewProps> = ({
               </React.Fragment>
             );
           }
-          if (collapsed[g.row.group]) { return null; }
+          if (isHidden(collapsed, g.row.phase, g.row.group)) { return null; }
           const isL4 = g.level === 4;
           const end = g.blockEnd ? styles.mEnd : undefined;
           return (

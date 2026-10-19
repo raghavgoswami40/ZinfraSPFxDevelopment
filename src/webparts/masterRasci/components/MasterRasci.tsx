@@ -5,12 +5,19 @@ import styles from './MasterRasci.module.scss';
 import {
   IMasterRasciProps, IMasterRasciData, IFilterState, RasciView, ChipCode,
 } from './IMasterRasciProps';
-import { EMPTY_FILTERS, filterRows, hasActiveFilters } from './masterRasciModel';
+import { EMPTY_FILTERS, filterRows, hasActiveFilters, phaseKey } from './masterRasciModel';
 import { SearchIcon, ListIcon, MatrixIcon } from './icons';
 import FilterPanel from './FilterPanel';
 import ActivityListView from './ActivityListView';
 import MatrixView from './MatrixView';
 import { ThemeContext, ThemeName, readStoredTheme, storeTheme } from './theme';
+import { ensureOutfitFont } from '../../../shared/outfitFont';
+import PageBanner from '../../pageBanner/components/PageBanner';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const logoOnDark: string = require('../../pageBanner/assets/zinfra-logo.png');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const logoOnLight: string = require('../../pageBanner/assets/zinfra-logo-dark.png');
 
 const cx = (...names: Array<string | false | undefined>): string =>
   names.filter(Boolean).join(' ');
@@ -135,13 +142,21 @@ const MasterRasciBody: React.FC<IMasterRasciProps> = ({
     rows.forEach((r) => { if (seen.indexOf(r.group) === -1) { seen.push(r.group); } });
     return seen;
   }, [rows]);
-  const allCollapsed = groupNames.length > 0 && groupNames.every((g) => collapsed[g]);
+  const phaseNames = React.useMemo(() => {
+    const seen: string[] = [];
+    rows.forEach((r) => { if (seen.indexOf(r.phase) === -1) { seen.push(r.phase); } });
+    return seen;
+  }, [rows]);
+  // "Collapse all" folds every phase and every L2 group, so opening one phase afterwards shows
+  // its groups still folded. "Expand all" opens all of them again.
+  const allCollapsed = phaseNames.length > 0 && phaseNames.every((p) => collapsed[phaseKey(p)]);
 
   const toggleGroup = (group: string): void =>
     setCollapsed((prev) => ({ ...prev, [group]: !prev[group] }));
   const toggleAll = (): void =>
     setCollapsed((prev) => {
       const next = { ...prev };
+      phaseNames.forEach((p) => { next[phaseKey(p)] = !allCollapsed; });
       groupNames.forEach((g) => { next[g] = !allCollapsed; });
       return next;
     });
@@ -264,6 +279,7 @@ const MasterRasciBody: React.FC<IMasterRasciProps> = ({
 
 /** The wrapper is the size container the scale unit is measured against. */
 const MasterRasci: React.FC<IMasterRasciProps> = (props) => {
+  React.useEffect(ensureOutfitFont, []);
   const [theme, setThemeState] = React.useState<ThemeName>(readStoredTheme);
   const value = React.useMemo(() => ({
     theme,
@@ -272,9 +288,28 @@ const MasterRasci: React.FC<IMasterRasciProps> = (props) => {
 
   return (
     <div className={styles.scope} data-mr-scope="" data-theme={theme}>
-      <ThemeContext.Provider value={value}>
-        <MasterRasciBody {...props} />
-      </ThemeContext.Provider>
+      <PageBanner
+        title={props.bannerTitle === undefined ? 'Master RASCI' : props.bannerTitle}
+        height={130}
+        backgroundColor="#000000"
+        showSparkles={props.showSparkles !== false}
+        followPageTheme={false}
+        theme={theme}
+        embedded
+        showLogo={false}
+      />
+      <div className={styles.content}>
+        <ThemeContext.Provider value={value}>
+          <MasterRasciBody {...props} />
+        </ThemeContext.Provider>
+        <div className={styles.logoRow}>
+          <img
+            className={styles.logo}
+            src={theme === 'light' ? logoOnLight : logoOnDark}
+            alt="Zinfra - Your trusted partner in energy"
+          />
+        </div>
+      </div>
     </div>
   );
 };

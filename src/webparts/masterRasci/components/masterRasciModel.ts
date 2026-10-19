@@ -130,27 +130,33 @@ export const phaseOfGroup = (data: IMasterRasciData, group: string): string | un
  *          marks an L3 whose steps follow, `blockEnd` the last row of an L3 group.
  */
 export type GroupedRow =
-  | { kind: 'head'; key: string; title: string }
-  | { kind: 'l3'; key: string; group: string; title: string }
+  | { kind: 'phase'; key: string; title: string }
+  | { kind: 'head'; key: string; title: string; phase: string }
+  | { kind: 'l3'; key: string; phase: string; group: string; title: string }
   | { kind: 'row'; key: string; row: IRasciActivity; level: 3 | 4; parent: boolean; blockEnd: boolean };
 
 /** Inserts an L2 heading when the process group changes, and gathers each L3 with
  *  its L4 steps into one block. Rows arrive sorted by process code, so the rows of
  *  one L3 are already next to each other. */
 export const groupRows = (rows: IRasciActivity[]): GroupedRow[] => {
-  const blocks: Array<{ group: string; process: string; rows: IRasciActivity[] }> = [];
+  const blocks: Array<{ phase: string; group: string; process: string; rows: IRasciActivity[] }> = [];
   rows.forEach((r) => {
     const last = blocks.length > 0 ? blocks[blocks.length - 1] : undefined;
     if (last && last.group === r.group && last.process === r.process) { last.rows.push(r); }
-    else { blocks.push({ group: r.group, process: r.process, rows: [r] }); }
+    else { blocks.push({ phase: r.phase, group: r.group, process: r.process, rows: [r] }); }
   });
 
   const out: GroupedRow[] = [];
+  let lastPhase: string | undefined;
   let lastGroup: string | undefined;
   blocks.forEach((b) => {
+    if (b.phase !== lastPhase) {
+      lastPhase = b.phase;
+      out.push({ kind: 'phase', key: 'ph:' + b.phase + ':' + b.rows[0].id, title: b.phase });
+    }
     if (b.group !== lastGroup) {
       lastGroup = b.group;
-      out.push({ kind: 'head', key: 'h:' + b.group + ':' + b.rows[0].id, title: b.group });
+      out.push({ kind: 'head', key: 'h:' + b.group + ':' + b.rows[0].id, title: b.group, phase: b.phase });
     }
 
     const steps = b.rows.filter((r) => r.activity !== '');
@@ -167,7 +173,7 @@ export const groupRows = (rows: IRasciActivity[]): GroupedRow[] => {
     if (own) {
       out.push({ kind: 'row', key: 'r:' + own.id, row: own, level: 3, parent: true, blockEnd: false });
     } else {
-      out.push({ kind: 'l3', key: 'l3:' + b.group + ':' + b.process + ':' + steps[0].id, group: b.group, title: b.process });
+      out.push({ kind: 'l3', key: 'l3:' + b.group + ':' + b.process + ':' + steps[0].id, phase: b.phase, group: b.group, title: b.process });
     }
     steps.forEach((r, i) => out.push({
       kind: 'row', key: 'r:' + r.id, row: r, level: 4, parent: false, blockEnd: i === steps.length - 1,
@@ -175,6 +181,14 @@ export const groupRows = (rows: IRasciActivity[]): GroupedRow[] => {
   });
   return out;
 };
+
+/** Folded-up state is one map: an L2 group by its name, a phase by "p:" plus its name (a phase
+ *  and its only group can share a name, e.g. "5 Control"). */
+export const phaseKey = (phase: string): string => 'p:' + phase;
+
+/** True when the row's group, or the phase around it, has been folded up. */
+export const isHidden = (collapsed: { [key: string]: boolean }, phase: string, group: string): boolean =>
+  !!collapsed[phaseKey(phase)] || !!collapsed[group];
 
 /** Roles with at least one assignment in the current result set (Matrix columns). */
 export const visibleRoles = (data: IMasterRasciData, rows: IRasciActivity[]): number[] => {

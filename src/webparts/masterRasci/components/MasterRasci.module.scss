@@ -9,17 +9,49 @@
    whole design scales together and keeps its proportions. */
 @function u($n) { @return calc(#{$n} * var(--u)); }
 
-/* The client's three brand colours, one per level of the process hierarchy: lime for the
-   L2 group, blue for the L3 process, grey for the L4 step. Each is a strong tint at the
-   left edge of its title cell that fades to nothing at the cell's right edge. Lime and
-   grey are kept soft so white text stays readable on them, and the fade ends before the
-   data cells, because the brand lime and grey are nearly the Informed and Accountable
-   chip colours. */
-$lvl2: #B9CE33;
-$lvl3: #2DAFE3;
-$lvl4: #BFBFBF;
-@mixin level-fade($color, $alpha) {
-  background-image: linear-gradient(90deg, rgba($color, $alpha), rgba($color, 0) 100%);
+/* One colour per level of the process hierarchy: lime for the L1 phase, blue for the L2 group,
+   pale blue for the L3 process, lavender for the L4 step. Each level's title cell has a solid 5px
+   edge in its colour and a fade that starts strong at the left and ends at the cell's right edge,
+   so it never sits behind the data chips (the Informed and Accountable chips are close to the
+   lime and the brand grey). The fade strength is a theme variable: a pale colour like the L3
+   blue needs more of it on the light theme and less on the dark. */
+$lvl1: #B9CE33;
+$lvl2: #2DAFE3;
+$lvl3: #A9D7EF;
+$lvl4: #A99BEA;
+
+/* $alphaVar is the NAME of a theme variable, e.g. --mr-l2-a. */
+@mixin level-fade($color, $alphaVar) {
+  /* Built as plain text: Sass would otherwise try to run rgba() itself and cannot take a var(). */
+  $channels: red($color) + ', ' + green($color) + ', ' + blue($color);
+  background-image: unquote('linear-gradient(90deg, rgba(#{$channels}, var(#{$alphaVar})), rgba(#{$channels}, 0) 100%)');
+}
+
+/* The solid edge. An inset shadow rather than a border, so it never moves the text. */
+@mixin level-edge($color) { box-shadow: inset u(5) 0 0 $color, 1px 0 0 $line; }
+
+/* Vertical guide lines in the lanes of the parent levels, at the given x positions, so a row can
+   be followed up to its group and phase. One pseudo-element, one stacked 1px gradient per line. */
+@mixin lanes($xs...) {
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    pointer-events: none;
+    $images: ();
+    $positions: ();
+    @each $x in $xs {
+      $images: append($images, linear-gradient(var(--mr-guide), var(--mr-guide)), comma);
+      $positions: append($positions, $x 0, comma);
+    }
+    background-image: $images;
+    background-position: $positions;
+    background-size: 1px 100%;
+    background-repeat: no-repeat;
+  }
 }
 
 /* Every colour that changes with the theme is a variable, defined once for dark and once
@@ -28,6 +60,7 @@ $lvl4: #BFBFBF;
    theme's colours would not have enough contrast on white. The R / A / S / C / I chip
    colours and the three brand gradients are the same in both themes. */
 @mixin theme-dark {
+  --mr-canvas: #000000;
   --mr-card: #0C0E12;
   --mr-surface: #12151A;
   --mr-raised: #171B21;
@@ -35,7 +68,7 @@ $lvl4: #BFBFBF;
   --mr-line-strong: #333A44;
   --mr-line-soft: #1A1F26;
   --mr-line-block: #3C4450;
-  --mr-line-hover: var(--mr-line-hover);
+  --mr-line-hover: #46505C;
   --mr-text: #EEF1F5;
   --mr-text-strong: #FFFFFF;
   --mr-muted: #98A3B0;
@@ -43,18 +76,25 @@ $lvl4: #BFBFBF;
   --mr-link: #2DAFE3;
   --mr-accent-soft: rgba(45, 175, 227, .14);
   --mr-accent-line: rgba(45, 175, 227, .45);
-  --mr-accent-hover: var(--mr-accent-hover);
+  --mr-accent-hover: rgba(45, 175, 227, .24);
   --mr-highlight: #7EE8D6;
   --mr-highlight-text: #7EE8D6;
-  --mr-highlight-soft: var(--mr-highlight-tint);
-  --mr-highlight-line: var(--mr-highlight-line);
+  --mr-highlight-soft: rgba(126, 232, 214, .14);
+  --mr-highlight-line: rgba(126, 232, 214, .45);
   --mr-highlight-tint: rgba(126, 232, 214, .13);
-  --mr-faint: var(--mr-faint);
-  --mr-skeleton: var(--mr-skeleton);
+  --mr-faint: rgba(255, 255, 255, .08);
+  --mr-skeleton: #1D2229;
   --mr-shadow: 0 16px 40px rgba(0, 0, 0, .55);
+  /* Strength of each level's colour at the left edge of its title cell, and the guide lines. */
+  --mr-l1-a: .36;
+  --mr-l2-a: .36;
+  --mr-l3-a: .30;
+  --mr-l4-a: .28;
+  --mr-guide: rgba(255, 255, 255, .2);
 }
 
 @mixin theme-light {
+  --mr-canvas: #F4F6F9;
   --mr-card: #FFFFFF;
   --mr-surface: #F4F6F9;
   --mr-raised: #EAEEF3;
@@ -70,7 +110,7 @@ $lvl4: #BFBFBF;
   --mr-link: #0B7BA8;
   --mr-accent-soft: rgba(45, 175, 227, .14);
   --mr-accent-line: rgba(11, 123, 168, .45);
-  --mr-accent-hover: var(--mr-accent-hover);
+  --mr-accent-hover: rgba(45, 175, 227, .24);
   --mr-highlight: #12B8A0;
   --mr-highlight-text: #0A7F6E;
   --mr-highlight-soft: rgba(18, 184, 160, .14);
@@ -79,6 +119,11 @@ $lvl4: #BFBFBF;
   --mr-faint: rgba(11, 27, 38, .07);
   --mr-skeleton: #E3E8EE;
   --mr-shadow: 0 12px 32px rgba(15, 30, 50, .18);
+  --mr-l1-a: .34;
+  --mr-l2-a: .30;
+  --mr-l3-a: .50;
+  --mr-l4-a: .34;
+  --mr-guide: rgba(11, 27, 38, .2);
 }
 
 $card:         var(--mr-card);
@@ -110,7 +155,7 @@ $radius-chip:  u(6);
 /* Height of the role-group band above the Matrix columns; the role-name row sticks below it. */
 $band-h: u(56);
 
-$font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
+$font: 'Outfit', 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 
 @mixin focus-ring {
   outline: none;
@@ -120,9 +165,35 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 .scope {
   container-type: inline-size;
   width: 100%;
+  padding-bottom: 32px;
+  background: var(--mr-canvas);
   @include theme-dark;
 
   &[data-theme='light'] { @include theme-light; }
+}
+
+/* The card sits inside the same 32px side margins as the banner above it. */
+.content {
+  padding: 18px 32px 0;
+  box-sizing: border-box;
+}
+
+/* Bottom right corner, under the card. */
+.logoRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.logo {
+  display: block;
+  height: 50px;
+  width: auto;
+}
+
+@media (max-width: 600px) {
+  .content { padding: 16px 16px 0; }
+  .logo { height: 40px; }
 }
 
 .root {
@@ -152,15 +223,6 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   border-radius: $radius-card;
   overflow: hidden;
   color: $text;
-
-  /* The one flourish: the five RASCI colours as a strip, in the By process column order R A S C I. */
-  &::before {
-    content: '';
-    display: block;
-    height: u(3);
-    background: linear-gradient(90deg,
-      #016891 0 20%, #BFBFBF 20% 40%, #009DDC 40% 60%, #6BA244 60% 80%, #B3BE35 80% 100%);
-  }
 }
 
 .muted { color: $muted; }
@@ -237,31 +299,51 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   font-weight: 700;
 }
 
+/* The four filters are one box: a single outline with a hairline between the cells. They share
+   one row; only on a phone-width screen is there no room for that, so they stack there. */
 .fieldRow {
   display: flex;
   flex-wrap: nowrap;
-  gap: u(12);
-  align-items: flex-end;
+  align-items: stretch;
+  background: $card;
+  border: 1px solid $line-strong;
+  border-radius: $radius-ctl;
 
-  /* The three filters share one row; only on a phone-width screen is there no
-     room for that, so they stack there instead of being squeezed unreadable. */
   @media (max-width: 720px) { flex-wrap: wrap; }
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: u(6);
+  gap: u(2);
   flex: 1 1 0;
   min-width: 0;
+  padding: u(8);
+  border-left: 1px solid $line;
+  transition: background-color .15s;
 
-  @media (max-width: 720px) { flex: 1 1 100%; }
+  &:first-child { border-left: none; border-radius: u(7) 0 0 u(7); }
+  &:last-child { border-radius: 0 u(7) u(7) 0; }
+  &:hover { background: $surface; }
+  /* Keyboard focus shows on the whole cell, since the control inside has no outline of its own. */
+  &:focus-within { background: $accent-soft; box-shadow: inset 0 0 0 u(2) $accent; }
+
+  @media (max-width: 720px) {
+    flex: 1 1 100%;
+    border-left: none;
+    border-top: 1px solid $line;
+    border-radius: 0;
+
+    &:first-child { border-top: none; border-radius: u(7) u(7) 0 0; }
+    &:last-child { border-radius: 0 0 u(7) u(7); }
+  }
 }
 
 .fieldLabel {
   font-size: u(12);
   font-weight: 600;
   color: var(--mr-text-strong);
+  padding-left: u(12);
 }
 
 .control {
@@ -278,6 +360,17 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   &:hover { border-color: var(--mr-line-hover); }
   &:focus { @include focus-ring; border-color: $accent; }
   &::placeholder { color: $dim; }
+}
+
+/* Inside the filter box the controls lose their own outline: the box and the cell focus ring
+   are the frame. */
+.fieldRow .control,
+.fieldRow .control:hover,
+.fieldRow .control:focus {
+  height: u(32);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .searchWrap {
@@ -600,7 +693,12 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 }
 
 /* ── By process ──────────────────────────────────────────────────────────── */
-.scrollX { overflow-x: auto; }
+/* The table scrolls inside its card in both directions, like the Matrix: that is what lets the header
+   row stay at the top and the Process column stay at the left, as frozen panes do in a spreadsheet. */
+.scrollX {
+  overflow: auto;
+  max-height: min(u(760), 80vh);
+}
 .listInner { min-width: u(1040); }
 
 .listGrid {
@@ -619,7 +717,11 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 
 /* Positioned so the resize handle can sit on the column's right edge. */
 .listHeadActivity {
-  position: relative;
+  /* Frozen at the left; opaque, so the columns scrolling beneath it do not show through. */
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background-color: $surface;
   padding: u(12) u(20);
   display: flex;
   align-items: center;
@@ -663,8 +765,56 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 
 /* The label cell is exactly as wide as the Process column, so the L2 fade spans the same
    width as the L3 and L4 fades below it. */
-.groupHeadLead { @include level-fade($lvl2, .34); }
+.groupHeadLead {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: inherit;
+  @include level-fade($lvl2, --mr-l2-a);
+  @include level-edge($lvl2);
+  @include lanes(u(30));
+}
 .groupHeadRest { grid-column: 2 / -1; }
+
+/* Phase (the top level, e.g. 2 Plan). Neutral graphite and a larger size: the three brand
+   colours stay with L2, L3 and L4, and this level reads as the frame around them. */
+.phaseHead {
+  background-color: $raised;
+  border-bottom: 1px solid $line-block;
+  cursor: pointer;
+}
+.phaseHead:hover { background-color: $line; }
+.phaseHeadRest { grid-column: 2 / -1; }
+
+/* The label cell is exactly the Process column wide, like the L2 / L3 / L4 title cells. */
+.phaseHeadLead {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: inherit;
+  @include level-fade($lvl1, --mr-l1-a);
+  @include level-edge($lvl1);
+}
+
+.phaseHeadLabel {
+  position: sticky;
+  left: 0;
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: u(12);
+  padding: u(14) u(14) u(14) u(22);
+  font-size: u(19);
+  font-weight: 700;
+  color: var(--mr-text-strong);
+
+  &:focus-visible { outline: 2px solid $accent; outline-offset: -2px; border-radius: 4px; }
+}
 
 .chev {
   display: inline-flex;
@@ -692,7 +842,7 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   display: inline-flex;
   align-items: center;
   gap: u(12);
-  padding: u(12) u(20);
+  padding: u(12) u(14) u(12) u(46);
   font-size: u(17);
   font-weight: 700;
   color: var(--mr-text-strong);
@@ -722,11 +872,17 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 }
 
 .rowTitleCell {
-  padding: u(14) u(20);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: inherit;
+  padding: u(14) u(20) u(14) u(70);
   display: flex;
   flex-direction: column;
   gap: u(2);
-  @include level-fade($lvl3, .32);
+  @include level-fade($lvl3, --mr-l3-a);
+  @include level-edge($lvl3);
+  @include lanes(u(30), u(56));
 }
 
 .rowTitle {
@@ -736,23 +892,14 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 
 /* L3 processes are bold white; their L4 steps are regular weight, indented, with a
    guide line down the left so a run of steps reads as one group. */
-.rowTitleL3 { font-weight: 700; color: var(--mr-text-strong); }
-.rowTitleL4 { font-weight: 400; }
+.rowTitleL3 { font-weight: 400; color: var(--mr-text-strong); }
+.rowTitleL4 { font-weight: 400; font-size: u(13); }
 
 .rowTitleCellL4 {
-  position: relative;
-  padding-left: u(52);
-  @include level-fade($lvl4, .18);
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: u(30);
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: $line-block;
-  }
+  padding-left: u(100);
+  @include level-fade($lvl4, --mr-l4-a);
+  @include level-edge($lvl4);
+  @include lanes(u(30), u(56), u(82));
 }
 
 .rowSub {
@@ -856,13 +1003,13 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   top: 0;
   z-index: 2;
   height: $band-h;
-  background: $accent;
-  color: #FFFFFF;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+  background-color: $surface;
+  background-image: linear-gradient(rgba(45, 175, 227, .2), rgba(45, 175, 227, .2));
+  color: var(--mr-text-strong);
   font-size: u(12);
   font-weight: 400;
   padding: u(4) u(2);
-  border-left: 1px solid rgba(4, 32, 43, .35);
+  border-left: 1px solid $line-strong;
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: u(14);
@@ -881,7 +1028,7 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   z-index: 4;
   background: $surface;
   border-bottom: 1px solid $line;
-  height: u(150);
+  height: u(136);
 }
 
 .mRoleHead {
@@ -891,7 +1038,7 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   background: $surface;
   border-bottom: 1px solid $line;
   border-left: 1px solid $line;
-  height: u(150);
+  height: u(136);
   display: flex;
   justify-content: center;
   padding: u(8) 0;
@@ -903,12 +1050,20 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   color: #000;
 }
 
+/* Vertical role names wrap onto two lines instead of running the full height, so the header row
+   is much shorter. In a vertical writing mode the height is the line length, so capping it
+   is what makes a long name break. */
 .mRoleName {
+  display: block;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   font-size: u(12);
   font-weight: 600;
-  white-space: nowrap;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-height: u(120);
 }
 
 /* Horizontal role names, used when the columns are wide enough (see MatrixView): a much
@@ -940,7 +1095,9 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   background-color: $surface;
   border-bottom: 1px solid $line;
   cursor: pointer;
-  @include level-fade($lvl2, .34);
+  @include level-fade($lvl2, --mr-l2-a);
+  @include level-edge($lvl2);
+  @include lanes(u(30));
 }
 
 .mGroupRest {
@@ -951,6 +1108,28 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 }
 
 .mGroupLead:hover, .mGroupRest:hover { background-color: $raised; }
+
+/* Matrix phase bar: as the By process one, with the label cell sticky like the Process column. */
+.mPhaseLead {
+  grid-column: 1;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: $raised;
+  border-bottom: 1px solid $line-block;
+  cursor: pointer;
+  @include level-fade($lvl1, --mr-l1-a);
+  @include level-edge($lvl1);
+}
+
+.mPhaseRest {
+  grid-column: 2 / -1;
+  background-color: $raised;
+  border-bottom: 1px solid $line-block;
+  cursor: pointer;
+}
+
+.mPhaseLead:hover, .mPhaseRest:hover { background-color: $line; }
 
 .mGroupHeadLabel {
   position: sticky;
@@ -964,7 +1143,7 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   display: inline-flex;
   align-items: center;
   gap: u(12);
-  padding: u(10) u(20);
+  padding: u(10) u(14) u(10) u(46);
   font-size: u(16);
   font-weight: 700;
   color: var(--mr-text-strong);
@@ -976,14 +1155,15 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   left: 0;
   z-index: 1;
   background-color: $card;
-  @include level-fade($lvl3, .32);
+  @include level-fade($lvl3, --mr-l3-a);
+  @include lanes(u(30), u(56));
   border-bottom: 1px solid $line-soft;
-  padding: u(7) u(20);
+  padding: u(7) u(20) u(7) u(70);
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-height: u(38);
-  box-shadow: 1px 0 0 $line;
+  box-shadow: inset u(5) 0 0 $lvl3, 1px 0 0 $line;
 }
 
 .mActivityTitle {
@@ -1011,22 +1191,14 @@ $font: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 .mActivityHead { background-color: $surface; }
 .mCellHead { background: $surface; }
 
-.mTitleL3 { font-weight: 700; color: var(--mr-text-strong); }
+.mTitleL3 { font-weight: 400; font-size: u(14); color: var(--mr-text-strong); }
 .mTitleL4 { font-weight: 400; }
 
 .mActivityL4 {
-  padding-left: u(52);
-  @include level-fade($lvl4, .18);
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: u(30);
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: $line-block;
-  }
+  padding-left: u(100);
+  @include level-fade($lvl4, --mr-l4-a);
+  box-shadow: inset u(5) 0 0 $lvl4, 1px 0 0 $line;
+  @include lanes(u(30), u(56), u(82));
 }
 
 /* Last row of an L3 group: the stronger line, across the activity cell and every role cell. */

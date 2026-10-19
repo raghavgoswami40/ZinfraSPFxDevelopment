@@ -70,7 +70,7 @@ const FilterPanel: React.FC<IFilterPanelProps> = ({ data, filters, onChange, lab
     set({ group: value, phase: phase !== undefined ? phase : filters.phase });
   };
 
-  // The five involvement types, in the By process column order, each with its colour badge.
+  // The five responsibility types, in the By process column order, each with its colour badge.
   const codeChoices = React.useMemo<IPickerGroup[]>(() => [{
     name: '',
     options: LIST_COLUMNS.map((c) => ({
@@ -160,10 +160,10 @@ const FilterPanel: React.FC<IFilterPanelProps> = ({ data, filters, onChange, lab
             groups={codeChoices}
             value={filters.code}
             allValue=""
-            allLabel="Any involvement"
+            allLabel="Any responsibility"
             icon={<FunnelIcon />}
             labelId={codeLabelId}
-            listLabel="Involvement"
+            listLabel="Responsibility"
             maxWidth={340}
             tone="accent"
             onChange={(v) => set({ code: v as ChipCode | '' })}

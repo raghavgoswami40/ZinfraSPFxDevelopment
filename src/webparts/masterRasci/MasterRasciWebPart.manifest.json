@@ -25,6 +25,8 @@
       },
       "officeFabricIconFontName": "Table",
       "properties": {
+        "bannerTitle": "Master RASCI",
+        "showSparkles": true,
         "listTitle": "RASCI",
         "defaultView": "list",
         "collapseAfter": 3,
@@ -32,7 +34,7 @@
         "labelSearch": "Search process",
         "labelGroup": "Process group",
         "labelRole": "View as role",
-        "labelCode": "Involvement",
+        "labelCode": "Responsibility",
         "labelViewList": "By process",
         "labelViewMatrix": "Matrix"
       }

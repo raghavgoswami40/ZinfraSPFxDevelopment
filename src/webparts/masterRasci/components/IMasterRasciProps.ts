@@ -65,7 +65,7 @@ export const DEFAULT_LABELS: IMasterRasciLabels = {
   search: 'Search process',
   group: 'Process group',
   role: 'View as role',
-  code: 'Involvement',
+  code: 'Responsibility',
   viewList: 'By process',
   viewMatrix: 'Matrix',
 };
@@ -77,4 +77,7 @@ export interface IMasterRasciProps {
   defaultView: RasciView;
   collapseAfter: number;
   labels: IMasterRasciLabels;
+  /** Heading in the banner at the top. */
+  bannerTitle?: string;
+  showSparkles?: boolean;
 }

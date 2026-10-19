@@ -6,6 +6,7 @@ import {
   PropertyPaneTextField,
   PropertyPaneDropdown,
   PropertyPaneSlider,
+  PropertyPaneToggle,
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 
@@ -16,6 +17,8 @@ import {
 import { MasterRasciService } from './services/MasterRasciService';
 
 export interface IMasterRasciWebPartProps {
+  bannerTitle?: string;
+  showSparkles?: boolean;
   listTitle: string;
   defaultView: RasciView;
   collapseAfter: number;
@@ -84,6 +87,8 @@ export default class MasterRasciWebPart extends BaseClientSideWebPart<IMasterRas
       defaultView: this.properties.defaultView === 'matrix' ? 'matrix' : 'list',
       collapseAfter: collapse >= 1 ? Math.floor(collapse) : DEFAULT_COLLAPSE_AFTER,
       labels: this._labels,
+      bannerTitle: this.properties.bannerTitle === undefined ? 'Master RASCI' : this.properties.bannerTitle,
+      showSparkles: this.properties.showSparkles !== false,
     });
     ReactDom.render(element, this.domElement);
   }
@@ -103,6 +108,13 @@ export default class MasterRasciWebPart extends BaseClientSideWebPart<IMasterRas
           header: { description: 'Filters and both views are used on the page itself.' },
           groups: [
             {
+              groupName: 'Banner',
+              groupFields: [
+                PropertyPaneTextField('bannerTitle', { label: 'Title' }),
+                PropertyPaneToggle('showSparkles', { label: 'Show starry animation' }),
+              ],
+            },
+            {
               groupName: 'Data',
               groupFields: [
                 PropertyPaneTextField('listTitle', {
@@ -119,7 +131,7 @@ export default class MasterRasciWebPart extends BaseClientSideWebPart<IMasterRas
                 PropertyPaneTextField('labelSearch', { label: 'Search filter', placeholder: DEFAULT_LABELS.search }),
                 PropertyPaneTextField('labelGroup', { label: 'Process group filter', placeholder: DEFAULT_LABELS.group }),
                 PropertyPaneTextField('labelRole', { label: 'Role filter', placeholder: DEFAULT_LABELS.role }),
-                PropertyPaneTextField('labelCode', { label: 'Involvement filter', placeholder: DEFAULT_LABELS.code }),
+                PropertyPaneTextField('labelCode', { label: 'Responsibility filter', placeholder: DEFAULT_LABELS.code }),
                 PropertyPaneTextField('labelViewList', { label: 'First view toggle', placeholder: DEFAULT_LABELS.viewList }),
                 PropertyPaneTextField('labelViewMatrix', { label: 'Second view toggle', placeholder: DEFAULT_LABELS.viewMatrix }),
               ],
