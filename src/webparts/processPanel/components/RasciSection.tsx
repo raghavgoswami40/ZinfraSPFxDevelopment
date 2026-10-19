@@ -19,6 +19,57 @@ const DEFAULT_EMPTY_BODY_L4 =
   'This process has sub-processes. Click one of the L4 process names in the ' +
   'process details panel to see its RASCI.';
 
+/** Black or white, whichever reads better on a role-coloured fill. */
+const textOn = (fill: string): string => {
+  const m = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i.exec((fill || '').trim());
+  if (!m) { return '#ffffff'; }
+  const h = m[1].length === 3 ? m[1].split('').map((c) => c + c).join('') : m[1];
+  const lum = (0.299 * parseInt(h.slice(0, 2), 16) + 0.587 * parseInt(h.slice(2, 4), 16) +
+    0.114 * parseInt(h.slice(4, 6), 16)) / 255;
+  return lum > 0.6 ? '#1c1c1c' : '#ffffff';
+};
+
+/** Popup layout: one card per role, with a letter tile and a chip per person. */
+const RoleCard: React.FC<{
+  role: RoleKey;
+  holders: string[];
+  color: string;
+}> = ({ role, holders, color }) => {
+  const label = ROLE_META[role].label;
+  const empty = holders.length === 0;
+  const cls = [
+    styles.roleCard,
+    empty ? styles.roleCardEmpty : '',
+  ].filter(Boolean).join(' ');
+
+  return (
+    <div className={cls} style={empty ? undefined : { borderTopColor: color }}>
+      <div className={styles.roleCardHead}>
+        <span
+          className={styles.roleTile}
+          style={empty ? undefined : { background: color, color: textOn(color) }}
+          aria-hidden="true"
+        >
+          {label.charAt(0)}
+        </span>
+        <span className={styles.roleCardName} style={empty ? undefined : { color: onDark(color) }}>
+          {label}
+        </span>
+      </div>
+      {empty && <div className={styles.roleCardNone}>N/A</div>}
+      {!empty && (
+        <ul className={styles.chips}>
+          {holders.map((holder, i) => (
+            <li key={`${holder}_${i}`} className={styles.chip}>
+              {holder}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
 /** One role: its heading and the pills beneath it. */
 const RoleSection: React.FC<{
   role: RoleKey;
@@ -45,6 +96,7 @@ const RoleSection: React.FC<{
 
 const RasciSection: React.FC<IRasciSectionProps> = (props) => {
   const {
+    compact,
     record,
     isLoading,
     error,
@@ -118,13 +170,21 @@ const RasciSection: React.FC<IRasciSectionProps> = (props) => {
 
     return (
       <>
-        <div className={styles.titleBlock}>
-          <h3 className={styles.stepTitle}>
-            {record.code ? `${record.code} ${record.title}` : record.title}
-          </h3>
-        </div>
+        {!compact && (
+          <div className={styles.titleBlock}>
+            <h3 className={styles.stepTitle}>
+              {record.code ? `${record.code} ${record.title}` : record.title}
+            </h3>
+          </div>
+        )}
 
-        {ROLE_ORDER.map((role) => (
+        {compact ? (
+          <div className={styles.cardGrid}>
+            {ROLE_ORDER.map((role) => (
+              <RoleCard key={role} role={role} holders={record.roles[role]} color={colors[role]} />
+            ))}
+          </div>
+        ) : ROLE_ORDER.map((role) => (
           <RoleSection
             key={role}
             role={role}
@@ -138,10 +198,12 @@ const RasciSection: React.FC<IRasciSectionProps> = (props) => {
 
   return (
     <div className={styles.panel} role="region" aria-label={title || DEFAULT_TITLE}>
-      <div className={styles.header}>
-        <span className={styles.headerIcon} aria-hidden="true"><RasciLogo /></span>
-        <span className={styles.headerTitle}>{title || DEFAULT_TITLE}</span>
-      </div>
+      {!compact && (
+        <div className={styles.header}>
+          <span className={styles.headerIcon} aria-hidden="true"><RasciLogo /></span>
+          <span className={styles.headerTitle}>{title || DEFAULT_TITLE}</span>
+        </div>
+      )}
       <div className={styles.body}>
         {renderBody()}
       </div>

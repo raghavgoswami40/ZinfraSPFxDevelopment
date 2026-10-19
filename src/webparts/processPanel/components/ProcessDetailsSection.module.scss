@@ -40,7 +40,7 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 /* Corners, shadow and clipping belong to the wrapper in ProcessPanel.module.scss
    now that both sections share one panel. */
 .panel {
-  font-family: $font-stack;
+  font-family: var(--pp-font, #{$font-stack});
   min-width: 280px;
   box-sizing: border-box;
 
@@ -87,8 +87,19 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   border-bottom: 1px solid $divider-strong;
 }
 
+/* Popup layout: the title block is the panel's header bar. The right padding
+   keeps the title clear of the popup's close button. */
+.titleBlockCompact {
+  background: $header-bg;
+  padding: 14px 56px 14px 16px;
+  border-bottom: none;
+
+  .breadcrumb { color: $text-muted; font-weight: 600; letter-spacing: 0.3px; }
+  .stepTitle { font-size: var(--pp-title, 18px); }
+}
+
 .breadcrumb {
-  font-size: 11px;
+  font-size: var(--pp-small, 11px);
   font-weight: 700;
   letter-spacing: 0.5px;
   color: $text-accent;
@@ -96,7 +107,7 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 }
 
 .stepTitle {
-  font-size: 16px;
+  font-size: var(--pp-title, 16px);
   font-weight: 700;
   line-height: 1.2;
   color: $text-primary;
@@ -112,7 +123,7 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--pp-label, 17px);
   font-weight: 700;
   text-transform: uppercase;
   color: $section-label-color;
@@ -124,14 +135,14 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 .sectionIcon {
   flex: 0 0 auto;
   display: inline-flex;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 
   svg { width: 100%; height: 100%; }
 }
 
 .purpose {
-  font-size: 11px;
+  font-size: var(--pp-body, 11px);
   font-weight: 600;
   line-height: 1.5;
   color: $text-body;
@@ -146,7 +157,7 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   gap: 6px;
 
   li {
-    font-size: 11px;
+    font-size: var(--pp-body, 11px);
     font-weight: 600;
     line-height: 1.45;
     color: $text-body;
@@ -229,7 +240,7 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   flex: 0 0 auto;
   background: $l4-badge-bg;
   color: $l4-badge-text;
-  font-size: 10.5px;
+  font-size: var(--pp-small, 10.5px);
   font-weight: 700;
   border-radius: 4px;
   padding: 3px 7px;
@@ -238,7 +249,7 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
 
 .l4Name {
   flex: 1 1 auto;
-  font-size: 12px;
+  font-size: var(--pp-body, 12px);
   font-weight: 600;
   line-height: 1.3;
   color: $l4-name-color;
@@ -346,7 +357,7 @@ $font-stack: 'Segoe UI', 'Segoe UI Web', -apple-system, system-ui, sans-serif;
   margin-top: 14px;
   background: $badge-bg;
   color: #fff;
-  font-family: $font-stack;
+  font-family: var(--pp-font, #{$font-stack});
   font-size: 13px;
   font-weight: 600;
   border: none;

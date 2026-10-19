@@ -70,6 +70,7 @@ const OutputList: React.FC<{ items: IOutputItem[] }> = ({ items }) => (
 
 const ProcessDetailsSection: React.FC<IProcessDetailsSectionProps> = (props) => {
   const {
+    compact,
     selectedStep,
     isLoading,
     error,
@@ -188,7 +189,7 @@ const ProcessDetailsSection: React.FC<IProcessDetailsSectionProps> = (props) => 
 
     return (
       <>
-        <div className={styles.titleBlock}>
+        <div className={`${styles.titleBlock} ${compact ? styles.titleBlockCompact : ''}`}>
           {showBreadcrumb && selectedStep.breadcrumb && (
             <div className={styles.breadcrumb}>{selectedStep.breadcrumb}</div>
           )}
@@ -243,10 +244,12 @@ const ProcessDetailsSection: React.FC<IProcessDetailsSectionProps> = (props) => 
 
   return (
     <div className={styles.panel} role="region" aria-label={title || DEFAULT_TITLE}>
-      <div className={styles.header}>
-        <span className={styles.headerIcon} aria-hidden="true"><ProcessDetailsLogo /></span>
-        <span className={styles.headerTitle}>{title || DEFAULT_TITLE}</span>
-      </div>
+      {!compact && (
+        <div className={styles.header}>
+          <span className={styles.headerIcon} aria-hidden="true"><ProcessDetailsLogo /></span>
+          <span className={styles.headerTitle}>{title || DEFAULT_TITLE}</span>
+        </div>
+      )}
       <div className={styles.body}>
         {renderBody()}
       </div>

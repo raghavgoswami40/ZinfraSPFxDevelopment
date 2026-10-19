@@ -1,0 +1,53 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/client-side-building-blocks/webpart-manifest.schema.json",
+  "id": "a4d7c1e8-6b32-4f09-9c5e-2e8b7d1f3a60",
+  "alias": "ProcessHierarchyWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": [
+    "SharePointWebPart"
+  ],
+  "supportsThemeVariants": true,
+  "supportsFullBleed": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+      "group": {
+        "default": "Other"
+      },
+      "title": {
+        "default": "Process Hierarchy"
+      },
+      "description": {
+        "default": "Full-width process hierarchy with vertical L3 steps. Click a step to open its process details and RASCI."
+      },
+      "officeFabricIconFontName": "FlowChart",
+      "properties": {
+        "bannerTitle": "Process Hierarchy",
+        "showSparkles": true,
+        "processListTitle": "Process Details",
+        "systemListTitle": "Systems Master",
+        "rasciListTitle": "RASCI",
+        "pdTitle": "Process details",
+        "showBreadcrumb": true,
+        "pdEmptyIcon": "👈",
+        "pdEmptyHeading": "Select a process to view details",
+        "pdEmptyBody": "Click on any process in the process hierarchy to see its purpose, inputs and outputs here.",
+        "rasciTitle": "RASCI",
+        "rasciEmptyIcon": "👈",
+        "rasciEmptyIconL4": "👆",
+        "rasciEmptyHeadingL3": "Select a process step to view its RASCI",
+        "rasciEmptyBodyL3": "Click on any process in the process hierarchy to see who is responsible, accountable, supporting, consulted and informed.",
+        "rasciEmptyHeadingL4": "Select an L4 process step to view its RASCI",
+        "rasciEmptyBodyL4": "This process has sub-processes. Click one of the L4 process names in the process details panel to see its RASCI.",
+        "colorResponsible": "#016891",
+        "colorAccountable": "#BFBFBF",
+        "colorSupports": "#009DDC",
+        "colorConsulted": "#6BA244",
+        "colorInformed": "#B3BE35"
+      }
+    }
+  ]
+}

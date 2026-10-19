@@ -18,6 +18,22 @@
         }
       ]
     },
+    "process-hierarchy-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/processHierarchy/ProcessHierarchyWebPart.js",
+          "manifest": "./src/webparts/processHierarchy/ProcessHierarchyWebPart.manifest.json"
+        }
+      ]
+    },
+    "page-banner-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/pageBanner/PageBannerWebPart.js",
+          "manifest": "./src/webparts/pageBanner/PageBannerWebPart.manifest.json"
+        }
+      ]
+    },
     "master-rasci-web-part": {
       "components": [
         {

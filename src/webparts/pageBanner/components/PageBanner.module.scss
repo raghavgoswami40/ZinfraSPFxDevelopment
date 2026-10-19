@@ -1,0 +1,177 @@
+$row-top: 6px;
+$row-height: 72px;
+$line-gap: 3px;
+$edge-left: 40px;
+$edge-right: 12px;
+
+.banner {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: background-color 0.2s ease;
+  font-family: var(--banner-font, 'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif);
+}
+
+// Title and logo stick to the top; the logo sits at the far right.
+.row {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  height: $row-height;
+  margin-top: $row-top;
+  padding: 0 $edge-right 0 $edge-left;
+  box-sizing: border-box;
+}
+
+.title {
+  margin: 0;
+  // Same stack and bold weight as the sparkles demo's headings (Tailwind font-sans, font-bold).
+  font-family: var(--banner-font, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif);
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.light .title {
+  color: #1f2933;
+}
+
+.logo {
+  display: block;
+  height: $row-height;
+  width: auto;
+  flex: 0 0 auto;
+}
+
+// Line and starfield run from the second letter of the title to the right end of the logo.
+.sparkles {
+  position: absolute;
+  left: var(--strip-left, #{$edge-left});
+  right: $edge-right;
+  top: $row-top + $row-height + $line-gap;
+  bottom: 0;
+  z-index: 1;
+}
+
+.glow,
+.line {
+  position: absolute;
+  top: 0;
+}
+
+.glow {
+  filter: blur(3px);
+}
+
+.glowBlue {
+  left: 3%;
+  right: 3%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00aeef, transparent);
+}
+
+.glowGreen {
+  left: 25%;
+  right: 25%;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, #a3b72f, transparent);
+}
+
+.line {
+  height: 1px;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+// Softens the edges of the starfield into the banner colour.
+.fade {
+  position: absolute;
+  inset: 0;
+  background: var(--banner-bg);
+  -webkit-mask-image: radial-gradient(45% 100% at 50% 0, transparent 20%, #000);
+  mask-image: radial-gradient(45% 100% at 50% 0, transparent 20%, #000);
+}
+
+// Controls sit under the title and logo, over the starfield.
+.below {
+  position: relative;
+  z-index: 3;
+  padding: 8px $edge-right 18px $edge-left;
+  box-sizing: border-box;
+}
+
+// Inside Process Hierarchy: edges match that web part's 32px content margins.
+.embedded {
+  .row { padding: 0 32px; height: 64px; }
+  .title { font-weight: 600; letter-spacing: 0.01em; }
+  .logo { height: 50px; }
+  .below { padding: 26px 32px 22px; }
+  .sparkles { right: 32px; top: $row-top + 64px + $line-gap; }
+}
+
+@media (max-width: 900px) {
+  .title {
+    font-size: 30px;
+  }
+
+  .row,
+  .logo {
+    height: 48px;
+  }
+
+  .sparkles {
+    top: $row-top + 48px + $line-gap;
+  }
+}
+
+@media (max-width: 640px) {
+  .banner {
+    height: auto !important;
+    padding-bottom: 78px;
+  }
+
+  .row {
+    height: auto;
+    flex-direction: column;
+    justify-content: center;
+    padding: 16px 20px;
+    gap: 10px;
+  }
+
+  .title {
+    font-size: 24px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .logo {
+    height: 44px;
+  }
+
+  .sparkles {
+    left: 0;
+    right: 0;
+    top: auto;
+    height: 78px;
+  }
+}
+
+@media (max-width: 640px) {
+  .embedded {
+    .row { padding: 16px 16px 8px; height: auto; }
+    .logo { height: 40px; }
+    .below { padding: 18px 16px 18px; }
+    .sparkles { right: 0; }
+  }
+}

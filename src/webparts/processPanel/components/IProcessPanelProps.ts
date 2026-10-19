@@ -40,6 +40,8 @@ export interface IProcessStep {
 }
 
 export interface IProcessDetailsSectionProps {
+  /** Popup layout: no logo header bar; the breadcrumb and title become the header. */
+  compact?: boolean;
   selectedStep: IProcessStep | null;
   isLoading?: boolean;
   error?: string;
@@ -116,6 +118,8 @@ export type EmptyReason =
   | 'notFound';
 
 export interface IRasciSectionProps {
+  /** Popup layout: no logo header bar or title block; a blue RASCI label heads the roles. */
+  compact?: boolean;
   record: IRasciRecord | null;
   isLoading?: boolean;
   error?: string;

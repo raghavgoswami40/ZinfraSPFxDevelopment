@@ -1,0 +1,768 @@
+// Palette copied from the Vertical Flow web part so both read as one family.
+$dark:  #1c1c1c;
+$green: #b9ce33;
+$blue:  #2dafe3;
+$grey:  #9e9e9e;
+$step-fill:          #a9d7ef;
+$step-fill-hover:    #8fc9e8;
+$step-selected-fill: #6fb5dc;
+$hexagon: polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%);
+$diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+
+/* Theme tokens. Only the canvas, text and inputs change between themes: the
+   phase frames, columns and step boxes keep the Vertical Flow colours in both,
+   so the hierarchy looks the same whichever theme is chosen. */
+.scope {
+  --ph-bg: #000000;
+  --ph-text: #eef1f5;
+  --ph-muted: #98a3b0;
+  --ph-line: #2a313a;
+  --ph-field: #14181e;
+  --ph-field-hover: #1b2027;
+  --ph-accent: #2dafe3;
+  --ph-head-font: 'Outfit', 'Segoe UI', -apple-system, system-ui, sans-serif;
+  --banner-font: var(--ph-head-font);
+
+  &[data-theme='light'] {
+    --ph-bg: #f4f6f9;
+    --ph-text: #1f2933;
+    --ph-muted: #5b6773;
+    --ph-line: #d5dce3;
+    --ph-field: #ffffff;
+    --ph-field-hover: #eef2f6;
+    --ph-accent: #0b7ba8;
+  }
+
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 0 40px;
+  background: var(--ph-bg);
+  color: var(--ph-text);
+  font-family: var(--ph-head-font);
+  position: relative;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px 32px 0;
+}
+
+/* ── Phases ─────────────────────────────────────────────── */
+/* Wide: Plan, Deliver and Close side by side, weighted by column count.
+   Narrow: phases stack. Nothing has a fixed pixel width, so there is no
+   horizontal scroll at any size. */
+.phases {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 1200px) {
+  .phases { grid-template-columns: minmax(0, 6fr) minmax(0, 6fr) minmax(0, 2.2fr); }
+}
+
+.phase {
+  background: $green;
+  border-radius: 16px;
+  padding: 0 10px 10px;
+  min-width: 0;
+}
+
+.phaseHeader {
+  color: $dark;
+  text-align: center;
+  padding: 12px 8px;
+  font-family: var(--ph-head-font);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.columns {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  align-items: stretch;
+}
+
+@media (max-width: 760px) {
+  .columns { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+
+/* ── L2 column ──────────────────────────────────────────── */
+.column {
+  background: $blue;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.columnGrey { background: $grey; }
+
+.columnHeader {
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.4px;
+  line-height: 1.3;
+  padding: 12px 8px 4px;
+  min-height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Top padding and the row gap leave room for the code pill, which straddles
+   each box's top edge. */
+.columnBody {
+  padding: 18px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+/* ── Steps ──────────────────────────────────────────────── */
+.step {
+  background: $step-fill;
+  border: none;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 10px 6px 8px;
+  position: relative;
+  min-height: 56px;
+  width: 100%;
+  font-family: inherit;
+  text-align: center;
+}
+
+.shapeApproval,
+.shapeSapStatus,
+.shapeGate {
+  background: transparent;
+  border-radius: 0;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: $step-fill;
+    z-index: 0;
+  }
+}
+
+.shapeApproval {
+  align-self: center;
+  width: 86%;
+  min-height: 40px;
+  padding: 4px 14px;
+  &::before { border-radius: 999px; }
+}
+
+.shapeSapStatus {
+  align-self: center;
+  width: 86%;
+  min-height: 46px;
+  padding: 4px 8px;
+  flex-direction: column;
+  gap: 1px;
+  &::before { clip-path: $hexagon; }
+}
+
+.shapeGate {
+  align-self: center;
+  width: 92px;
+  aspect-ratio: 1;
+  min-height: 0;
+  padding: 0 18px;
+  &::before { clip-path: $diamond; background: $green; }
+  .stepLabel { color: $dark; font-weight: 700; }
+}
+
+.stepClickable {
+  cursor: pointer;
+  transition: background 0.12s;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.16);
+  &:hover { background: $step-fill-hover; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22); }
+  &:focus-visible { outline: 2px solid $dark; outline-offset: 2px; }
+}
+
+.stepSelected {
+  background: $step-selected-fill;
+  box-shadow: 0 0 0 2px $dark;
+  &:hover { background: $step-selected-fill; box-shadow: 0 0 0 2px $dark; }
+}
+
+.stepDim { opacity: 0.3; }
+
+.sapPrefix {
+  position: relative;
+  z-index: 1;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #3d3d3d;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.stepCodeBadge {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  background: #404040;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.stepLabel {
+  position: relative;
+  z-index: 1;
+  font-size: 11.5px;
+  color: $dark;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.shapeApproval .stepLabel,
+.shapeSapStatus .stepLabel {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.shapeGroup {
+  border: 2px dashed rgba(255, 255, 255, 0.85);
+  border-radius: 6px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 20px;
+  padding: 22px 6px 12px;
+  position: relative;
+  margin-top: 14px;
+}
+
+.groupTitle {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  line-height: 1.15;
+}
+
+/* ── 5 Control: horizontal band along the bottom ─────────── */
+.footRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Bottom right corner, centred vertically on the 5 Control box beside it. */
+.footLogo {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: block;
+  height: 50px;
+  width: auto;
+}
+
+@media (max-width: 1100px) {
+  .footRow { flex-direction: column; gap: 16px; }
+  .footLogo { position: static; transform: none; height: 44px; }
+}
+
+/* Only as wide as its content, and centred under the phases above. */
+.controlPhase {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px;
+  align-self: center;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.controlTitle {
+  flex: 0 0 150px;
+  margin: 0;
+  text-align: center;
+  color: $dark;
+  font-family: var(--ph-head-font);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+/* The L3 boxes keep the width of the ones in the phases above (--l3w, measured
+   in ProcessHierarchy.tsx) and wrap onto another row when there is no room. */
+.controlInner {
+  flex: 1;
+  min-width: 0;
+  background: $blue;
+  border-radius: 10px;
+  padding: 22px 12px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-evenly;
+  align-items: flex-start;
+  gap: 24px 8px;
+
+  .step { width: var(--l3w, 150px); flex: 0 0 auto; }
+  .shapeApproval, .shapeSapStatus { width: calc(var(--l3w, 150px) * 0.86); }
+  .shapeGate { width: 92px; }
+}
+
+@media (max-width: 900px) {
+  .controlPhase { flex-direction: column; align-items: stretch; gap: 0; }
+  .controlTitle { flex: none; padding: 14px 8px; }
+  .controlInner { flex: none; }
+}
+
+/* ── Search ─────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 24px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.2px;
+  color: var(--ph-text);
+}
+
+.hint {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ph-muted);
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.searchWrap {
+  position: relative;
+  display: block;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--ph-muted);
+  pointer-events: none;
+}
+
+.search {
+  box-sizing: border-box;
+  width: 260px;
+  max-width: 100%;
+  height: 38px;
+  padding: 0 12px 0 34px;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--ph-text);
+  background: var(--ph-field);
+  border: 1px solid var(--ph-line);
+  border-radius: 8px;
+  transition: border-color 0.15s, background-color 0.15s;
+
+  &::placeholder { color: var(--ph-muted); opacity: 1; }
+  &:hover { border-color: var(--ph-muted); }
+  &:focus-visible { outline: 2px solid var(--ph-accent); outline-offset: 1px; border-color: transparent; }
+}
+
+.themeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 10px 0 12px;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--ph-text);
+  background: var(--ph-field);
+  border: 1px solid var(--ph-line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+
+  &:hover { background: var(--ph-field-hover); border-color: var(--ph-muted); }
+  &:focus-visible { outline: 2px solid var(--ph-accent); outline-offset: 2px; }
+}
+
+.themeIcon { display: inline-flex; color: var(--ph-muted); }
+.themeLabel { min-width: 34px; text-align: left; }
+
+.themeTrack {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--ph-line);
+  transition: background-color 0.2s;
+}
+
+.themeKnob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ph-text);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.themeBtn[aria-checked='true'] {
+  .themeTrack { background: var(--ph-accent); }
+  .themeKnob { transform: translateX(14px); background: #fff; }
+}
+
+/* ── Shape key ──────────────────────────────────────────── */
+.legend {
+  list-style: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  font-size: 12.5px;
+  color: var(--ph-muted);
+
+  li { display: inline-flex; align-items: center; gap: 8px; }
+}
+
+.swatch {
+  display: inline-block;
+  width: 20px;
+  height: 12px;
+  background: $step-fill;
+}
+
+.swatchBox { border-radius: 3px; }
+.swatchSap { clip-path: $hexagon; }
+.swatchPill { border-radius: 999px; }
+.swatchGate { width: 14px; height: 14px; background: $green; clip-path: $diamond; }
+
+/* ── Popup panel (the same Process Panel as before) ──────── */
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  animation: fade 0.18s ease-out;
+}
+
+.drawer {
+  /* Starts level with the top of the web part and pins under SharePoint's top
+     bar while the page scrolls (top and height are set inline). */
+  position: sticky;
+  flex: 0 0 auto;
+  max-height: 100%;
+  pointer-events: auto;
+  width: min(100%, clamp(440px, 32vw, 640px));
+  /* Text in the panel grows with the screen. The panel's own styles read these
+     and fall back to their small sizes when they are not set. */
+  --pp-body: clamp(14px, 0.35vw + 11.5px, 17px);
+  --pp-small: clamp(12px, 0.2vw + 10px, 14px);
+  --pp-label: clamp(17px, 0.4vw + 13px, 21px);
+  --pp-title: clamp(18px, 0.4vw + 14px, 23px);
+  --pp-role: clamp(13px, 0.3vw + 10.5px, 16px);
+  --pp-chip: clamp(13px, 0.25vw + 11px, 15.5px);
+  z-index: 1;
+  font-family: var(--ph-head-font);
+  --pp-font: var(--ph-head-font);
+  background: #000;
+  overflow-y: auto;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
+  animation: slide 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  scrollbar-width: thin;
+  scrollbar-color: #5a5a5a #000;
+}
+
+/* Zero-height sticky row, so the close button floats over the panel header
+   and stays reachable while the panel scrolls. */
+.drawerBar {
+  position: sticky;
+  top: 0;
+  height: 0;
+  z-index: 2;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #4a4a4a;
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  cursor: pointer;
+  &:hover { background: #666; }
+  &:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+}
+
+/* The panel's own wrapper adds a bottom margin and corners for sitting on a
+   page; inside the drawer it should just fill it. */
+.drawerBody > div {
+  margin-bottom: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+@keyframes slide { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 600px) {
+  .scope { padding: 0 0 28px; }
+  .wrapper { padding: 16px 16px 0; }
+  .editHint { padding: 0 16px; }
+  .search { width: 100%; }
+  .tools { width: 100%; }
+  .searchWrap { flex: 1 1 200px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer, .scrim { animation: none; }
+  .scope, .themeKnob, .themeTrack, .search, .themeBtn, .stepClickable { transition: none; }
+}
+
+/* ── Edit mode ───────────────────────────────────────────── */
+.editable {
+  cursor: text;
+  border-radius: 3px;
+  &:hover { outline: 1px dashed currentColor; outline-offset: 2px; }
+}
+
+.titleEditor {
+  box-sizing: border-box;
+  width: min(100%, 260px);
+  font: inherit;
+  font-size: 13px;
+  text-align: center;
+  color: $dark;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid $dark;
+  border-radius: 4px;
+  padding: 2px 8px;
+  outline: none;
+}
+
+.stepEditor {
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  font: inherit;
+  font-size: 11.5px;
+  text-align: center;
+  color: $dark;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid $dark;
+  border-radius: 4px;
+  resize: none;
+  outline: none;
+  padding: 2px 4px;
+}
+
+.groupTitleEditor {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  height: 20px;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 10px;
+  text-align: center;
+  color: $dark;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid $dark;
+  border-radius: 3px;
+  resize: none;
+  outline: none;
+  padding: 1px 3px;
+}
+
+.removeBtn,
+.removeSectionBtn {
+  position: absolute;
+  z-index: 3;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: #c62828;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  &:hover { background: #e53935; }
+  &:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+}
+
+.removeBtn { top: -6px; right: -6px; }
+.removeSectionBtn { top: 6px; right: 6px; }
+
+.addWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.addBtn,
+.addSectionBtn {
+  font-family: inherit;
+  cursor: pointer;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px dashed rgba(255, 255, 255, 0.75);
+  border-radius: 6px;
+  &:hover { background: rgba(255, 255, 255, 0.34); }
+  &:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+}
+
+.addBtn { font-size: 12px; padding: 5px 12px; }
+
+.addSectionBtn {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: $dark;
+  border-color: rgba(28, 28, 28, 0.55);
+  background: rgba(255, 255, 255, 0.35);
+  &:hover { background: rgba(255, 255, 255, 0.55); }
+}
+
+.addMenu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+}
+
+.addMenuItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: #fff;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  &:hover { background: rgba(255, 255, 255, 0.16); }
+  &:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+}
+
+.glyph {
+  display: inline-block;
+  width: 22px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.pvBox { border-radius: 3px; }
+.pvApproval { border-radius: 999px; }
+.pvSap { clip-path: $hexagon; }
+.pvGate { clip-path: $diamond; }
+.pvGroup { background: transparent; border: 1px dashed rgba(255, 255, 255, 0.9); border-radius: 3px; }
+
+.groupAdd {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.groupAddBtn {
+  width: 22px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.65);
+  &:hover { background: #fff; }
+  &:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+}
+
+.editHint {
+  padding: 0 32px;
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--ph-muted);
+}

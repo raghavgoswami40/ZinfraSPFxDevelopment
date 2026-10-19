@@ -7,6 +7,8 @@ import { IProcessDetailsSectionProps, IRasciSectionProps } from './IProcessPanel
 export interface IProcessPanelProps {
   processDetails: IProcessDetailsSectionProps;
   rasci: IRasciSectionProps;
+  /** Popup layout, used by the Process Hierarchy web part. */
+  compact?: boolean;
 }
 
 /**
@@ -15,10 +17,10 @@ export interface IProcessPanelProps {
  * unit; it expects the sole child of the web part's domElement, which is
  * exactly what renders here.
  */
-const ProcessPanel: React.FC<IProcessPanelProps> = ({ processDetails, rasci }) => (
+const ProcessPanel: React.FC<IProcessPanelProps> = ({ processDetails, rasci, compact }) => (
   <div className={styles.wrapper}>
-    <ProcessDetailsSection {...processDetails} />
-    <RasciSection {...rasci} />
+    <ProcessDetailsSection {...processDetails} compact={compact} />
+    <RasciSection {...rasci} compact={compact} />
   </div>
 );
 
