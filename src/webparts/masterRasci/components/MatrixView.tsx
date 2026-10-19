@@ -23,6 +23,14 @@ interface IMatrixViewProps {
   allCollapsed: boolean;
 }
 
+/** A slash is a place to break, so "Procurement/Contract Lead" wraps after the slash, not inside a word. */
+const roleNameWithBreaks = (name: string): React.ReactNode[] =>
+  name.split('/').reduce<React.ReactNode[]>((out, part, i) => {
+    if (i > 0) out.push('/', <wbr key={i} />);
+    out.push(part);
+    return out;
+  }, []);
+
 const cx = (...names: Array<string | false | undefined>): string =>
   names.filter(Boolean).join(' ');
 
@@ -127,7 +135,7 @@ const MatrixView: React.FC<IMatrixViewProps> = ({
             key={i}
             className={cx(styles.mRoleHead, horizontal && styles.mRoleHeadH, i === role && styles.mRoleHeadMine)}
           >
-            <span className={horizontal ? styles.mRoleNameH : styles.mRoleName}>{data.roles[i].name}</span>
+            <span className={horizontal ? styles.mRoleNameH : styles.mRoleName}>{roleNameWithBreaks(data.roles[i].name)}</span>
           </div>
         ))}
 

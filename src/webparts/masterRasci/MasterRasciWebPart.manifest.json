@@ -26,6 +26,7 @@
       "officeFabricIconFontName": "Table",
       "properties": {
         "bannerTitle": "Master RASCI",
+        "showTitle": true,
         "showSparkles": true,
         "listTitle": "RASCI",
         "defaultView": "list",

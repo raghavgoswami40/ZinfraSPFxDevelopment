@@ -26,6 +26,7 @@
       "officeFabricIconFontName": "FlowChart",
       "properties": {
         "bannerTitle": "Process Hierarchy",
+        "showTitle": true,
         "showSparkles": true,
         "processListTitle": "Process Details",
         "systemListTitle": "Systems Master",

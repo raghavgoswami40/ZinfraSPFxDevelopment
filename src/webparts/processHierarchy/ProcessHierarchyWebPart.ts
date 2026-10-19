@@ -4,6 +4,10 @@ import { Version, DisplayMode } from '@microsoft/sp-core-library';
 import {
   IPropertyPaneConfiguration,
   PropertyPaneTextField,
+  PropertyPaneDropdown,
+  IPropertyPaneDropdownOption,
+  IPropertyPaneDropdownProps,
+  IPropertyPaneField,
   PropertyPaneToggle,
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
@@ -13,6 +17,7 @@ import ProcessHierarchy, { IProcessHierarchyProps } from './components/ProcessHi
 import { IPanelConfig } from './components/ProcessPanelContainer';
 import { StoredPhase } from '../verticalFlow/components/IVerticalFlowProps';
 import { DEFAULT_PHASES } from '../verticalFlow/components/verticalFlowData';
+import { loadListOptions } from '../../shared/listOptions';
 import { isValidHex } from '../processPanel/components/roleColors';
 
 export interface IProcessHierarchyWebPartProps extends IPanelConfig {
@@ -21,6 +26,7 @@ export interface IProcessHierarchyWebPartProps extends IPanelConfig {
   phases?: StoredPhase[];
   /** Heading in the banner at the top. */
   bannerTitle?: string;
+  showTitle?: boolean;
   showSparkles?: boolean;
 }
 
@@ -29,11 +35,32 @@ const colorError = (value: string): string =>
 
 export default class ProcessHierarchyWebPart extends BaseClientSideWebPart<IProcessHierarchyWebPartProps> {
 
+  private _lists: IPropertyPaneDropdownOption[] = [];
+
+  protected onPropertyPaneConfigurationStart(): void {
+    const q = this.properties;
+    loadListOptions(this.context.spHttpClient, this.context.pageContext.web.absoluteUrl, [
+      q.processListTitle || 'Process Details', q.systemListTitle || 'Systems Master', q.rasciListTitle || 'RASCI',
+    ])
+      .then((opts) => { this._lists = opts; this.context.propertyPane.refresh(); })
+      .catch(() => undefined);
+  }
+
+  private _listField(prop: 'processListTitle' | 'systemListTitle' | 'rasciListTitle', label: string, fallback: string): IPropertyPaneField<IPropertyPaneDropdownProps> {
+    const value = this.properties[prop] || fallback;
+    return PropertyPaneDropdown(prop, {
+      label,
+      options: this._lists.length > 0 ? this._lists : [{ key: value, text: value }],
+      selectedKey: value,
+    });
+  }
+
   public render(): void {
     const p = this.properties;
     const element: React.ReactElement<IProcessHierarchyProps> = React.createElement(ProcessHierarchy, {
       phases: p.phases && p.phases.length > 0 ? p.phases : DEFAULT_PHASES,
       bannerTitle: p.bannerTitle === undefined ? 'Process Hierarchy' : p.bannerTitle,
+      showTitle: p.showTitle !== false,
       showSparkles: p.showSparkles !== false,
       isEditMode: this.displayMode === DisplayMode.Edit,
       onPhasesChange: (updated: StoredPhase[]) => {
@@ -89,24 +116,17 @@ export default class ProcessHierarchyWebPart extends BaseClientSideWebPart<IProc
             {
               groupName: 'Banner',
               groupFields: [
-                PropertyPaneTextField('bannerTitle', { label: 'Title' }),
+                PropertyPaneToggle('showTitle', { label: 'Show title' }),
+                PropertyPaneTextField('bannerTitle', { label: 'Title', disabled: this.properties.showTitle === false }),
                 PropertyPaneToggle('showSparkles', { label: 'Show starry animation' }),
               ],
             },
             {
               groupName: 'Lists',
               groupFields: [
-                PropertyPaneTextField('processListTitle', { label: 'Process Details list' }),
-                PropertyPaneTextField('systemListTitle', { label: 'Systems Master list' }),
-                PropertyPaneTextField('rasciListTitle', { label: 'RASCI list' }),
-              ],
-            },
-            {
-              groupName: 'Process details panel',
-              groupFields: [
-                PropertyPaneTextField('pdTitle', { label: 'Header title' }),
-                PropertyPaneToggle('showBreadcrumb', { label: 'Show breadcrumb' }),
-                PropertyPaneTextField('rasciTitle', { label: 'RASCI header title' }),
+                this._listField('processListTitle', 'Process Details list', 'Process Details'),
+                this._listField('systemListTitle', 'Systems Master list', 'Systems Master'),
+                this._listField('rasciListTitle', 'RASCI list', 'RASCI'),
               ],
             },
             {

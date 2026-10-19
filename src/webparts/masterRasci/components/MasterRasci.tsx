@@ -290,7 +290,8 @@ const MasterRasci: React.FC<IMasterRasciProps> = (props) => {
     <div className={styles.scope} data-mr-scope="" data-theme={theme}>
       <PageBanner
         title={props.bannerTitle === undefined ? 'Master RASCI' : props.bannerTitle}
-        height={130}
+        height={props.showTitle !== false ? 130 : 56}
+        showTitle={props.showTitle !== false}
         backgroundColor="#000000"
         showSparkles={props.showSparkles !== false}
         followPageTheme={false}

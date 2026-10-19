@@ -6,7 +6,7 @@ import {
 } from './masterRasciModel';
 import GroupedPicker, { IPickerGroup } from './GroupedPicker';
 import ThemeToggle from './ThemeToggle';
-import { SearchIcon, CloseIcon, LayersIcon, UserIcon, FunnelIcon } from './icons';
+import { SearchIcon, CloseIcon, LayersIcon, UserIcon, FunnelIcon, ChevronIcon } from './icons';
 
 interface IFilterPanelProps {
   data: IMasterRasciData;
@@ -36,6 +36,11 @@ const ActiveChip: React.FC<{ name: string; value: string; onRemove: () => void }
 
 let pickerSeq = 0;
 
+const OPEN_KEY = 'mr-filters-open';
+const readOpen = (): boolean => {
+  try { return window.localStorage.getItem(OPEN_KEY) !== '0'; } catch { return true; }
+};
+
 const FilterPanel: React.FC<IFilterPanelProps> = ({ data, filters, onChange, labels }) => {
   // One id per instance, so two Master RASCI web parts on a page do not share labels.
   const seq = React.useRef(++pickerSeq).current;
@@ -60,6 +65,18 @@ const FilterPanel: React.FC<IFilterPanelProps> = ({ data, filters, onChange, lab
     });
     return out;
   }, [data]);
+
+  // The filter boxes fold away to give the table the room; the chips below stay, so a folded
+  // panel still says what is being filtered.
+  const [open, setOpen] = React.useState<boolean>(readOpen);
+  const toggleOpen = (): void => {
+    const next = !open;
+    setOpen(next);
+    try { window.localStorage.setItem(OPEN_KEY, next ? '1' : '0'); } catch { /* storage blocked */ }
+  };
+  const fieldsId = `mr-filter-fields-${seq}`;
+  const activeCount = (filters.phase !== 'All' ? 1 : 0) + (filters.group !== 'All' ? 1 : 0)
+    + (filters.role >= 0 ? 1 : 0) + (filters.code ? 1 : 0) + (filters.q ? 1 : 0);
 
   const set = (patch: Partial<IFilterState>): void => onChange({ ...filters, ...patch });
 
@@ -104,10 +121,24 @@ const FilterPanel: React.FC<IFilterPanelProps> = ({ data, filters, onChange, lab
             );
           })}
         </div>
+        <button
+          type="button"
+          className={cx(styles.filtersToggle, open && styles.filtersToggleOpen)}
+          aria-expanded={open}
+          aria-controls={fieldsId}
+          onClick={toggleOpen}
+        >
+          <FunnelIcon />
+          <span>Filters</span>
+          {activeCount > 0 && (
+            <span className={styles.filtersCount} aria-label={`${activeCount} active`}>{activeCount}</span>
+          )}
+          <span className={styles.filtersChevron} aria-hidden="true"><ChevronIcon /></span>
+        </button>
         <ThemeToggle />
       </div>
 
-      <div className={styles.fieldRow}>
+      {open && <div className={styles.fieldRow} id={fieldsId}>
         <label className={styles.field}>
           <span className={styles.fieldLabel}>{labels.search}</span>
           <span className={styles.searchWrap}>
@@ -169,7 +200,7 @@ const FilterPanel: React.FC<IFilterPanelProps> = ({ data, filters, onChange, lab
             onChange={(v) => set({ code: v as ChipCode | '' })}
           />
         </div>
-      </div>
+      </div>}
 
       {hasActiveFilters(filters) && (
         <div className={styles.activeRow} aria-label="Active filters">

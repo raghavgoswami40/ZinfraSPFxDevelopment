@@ -79,5 +79,6 @@ export interface IMasterRasciProps {
   labels: IMasterRasciLabels;
   /** Heading in the banner at the top. */
   bannerTitle?: string;
+  showTitle?: boolean;
   showSparkles?: boolean;
 }

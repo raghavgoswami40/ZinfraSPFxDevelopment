@@ -120,6 +120,11 @@ $edge-right: 12px;
   .sparkles { right: 32px; top: $row-top + 64px + $line-gap; }
 }
 
+// Title hidden: the starfield line runs along the top edge, above whatever the banner holds.
+.noTitle .sparkles,
+.embedded.noTitle .sparkles { top: 0; left: $edge-left; }
+.embedded.noTitle .sparkles { left: 32px; }
+
 @media (max-width: 900px) {
   .title {
     font-size: 30px;

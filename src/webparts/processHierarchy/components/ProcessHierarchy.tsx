@@ -14,6 +14,7 @@ export interface IProcessHierarchyProps {
   panelConfig: IPanelConfig;
   /** Page is in edit mode: titles, steps and sections can be changed. */
   bannerTitle: string;
+  showTitle: boolean;
   showSparkles: boolean;
   isEditMode: boolean;
   onPhasesChange: (phases: StoredPhase[]) => void;
@@ -74,7 +75,7 @@ const MoonIcon: React.FC = () => (
 
 const tidy = (s: string): string => (s || '').replace(/\s*\n\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
 
-const ProcessHierarchy: React.FC<IProcessHierarchyProps> = ({ phases, spHttpClient, webUrl, panelConfig, bannerTitle, showSparkles, isEditMode, onPhasesChange }) => {
+const ProcessHierarchy: React.FC<IProcessHierarchyProps> = ({ phases, spHttpClient, webUrl, panelConfig, bannerTitle, showTitle, showSparkles, isEditMode, onPhasesChange }) => {
   const [selected, setSelected] = React.useState<{ id: string; code: string } | undefined>();
   const [query, setQuery] = React.useState('');
   React.useEffect(ensureOutfitFont, []);
@@ -441,6 +442,7 @@ const ProcessHierarchy: React.FC<IProcessHierarchyProps> = ({ phases, spHttpClie
     <div className={styles.scope} data-theme={theme} ref={scopeRef}>
       <PageBanner
         title={bannerTitle}
+        showTitle={showTitle}
         backgroundColor="#000000"
         showSparkles={showSparkles}
         followPageTheme={false}

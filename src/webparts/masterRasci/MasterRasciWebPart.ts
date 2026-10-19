@@ -5,6 +5,7 @@ import {
   IPropertyPaneConfiguration,
   PropertyPaneTextField,
   PropertyPaneDropdown,
+  IPropertyPaneDropdownOption,
   PropertyPaneSlider,
   PropertyPaneToggle,
 } from '@microsoft/sp-property-pane';
@@ -14,10 +15,12 @@ import MasterRasci from './components/MasterRasci';
 import {
   IMasterRasciProps, IMasterRasciData, IMasterRasciLabels, RasciView, DEFAULT_LABELS,
 } from './components/IMasterRasciProps';
+import { loadListOptions } from '../../shared/listOptions';
 import { MasterRasciService } from './services/MasterRasciService';
 
 export interface IMasterRasciWebPartProps {
   bannerTitle?: string;
+  showTitle?: boolean;
   showSparkles?: boolean;
   listTitle: string;
   defaultView: RasciView;
@@ -39,6 +42,13 @@ export default class MasterRasciWebPart extends BaseClientSideWebPart<IMasterRas
   private _service: MasterRasciService | undefined;
   private _serviceKey = '';
   private _load: (() => Promise<IMasterRasciData>) | undefined;
+  private _lists: IPropertyPaneDropdownOption[] = [];
+
+  protected onPropertyPaneConfigurationStart(): void {
+    loadListOptions(this.context.spHttpClient, this.context.pageContext.web.absoluteUrl, [this._listTitle])
+      .then((opts) => { this._lists = opts; this.context.propertyPane.refresh(); })
+      .catch(() => undefined);
+  }
 
   private get _listTitle(): string {
     return (this.properties.listTitle || '').trim() || DEFAULT_LIST;
@@ -88,6 +98,7 @@ export default class MasterRasciWebPart extends BaseClientSideWebPart<IMasterRas
       collapseAfter: collapse >= 1 ? Math.floor(collapse) : DEFAULT_COLLAPSE_AFTER,
       labels: this._labels,
       bannerTitle: this.properties.bannerTitle === undefined ? 'Master RASCI' : this.properties.bannerTitle,
+      showTitle: this.properties.showTitle !== false,
       showSparkles: this.properties.showSparkles !== false,
     });
     ReactDom.render(element, this.domElement);
@@ -110,17 +121,18 @@ export default class MasterRasciWebPart extends BaseClientSideWebPart<IMasterRas
             {
               groupName: 'Banner',
               groupFields: [
-                PropertyPaneTextField('bannerTitle', { label: 'Title' }),
+                PropertyPaneToggle('showTitle', { label: 'Show title' }),
+                PropertyPaneTextField('bannerTitle', { label: 'Title', disabled: this.properties.showTitle === false }),
                 PropertyPaneToggle('showSparkles', { label: 'Show starry animation' }),
               ],
             },
             {
               groupName: 'Data',
               groupFields: [
-                PropertyPaneTextField('listTitle', {
+                PropertyPaneDropdown('listTitle', {
                   label: 'RASCI list',
-                  description: 'Title of the SharePoint list on this site that holds the RASCI.',
-                  placeholder: DEFAULT_LIST,
+                  options: this._lists.length > 0 ? this._lists : [{ key: this._listTitle, text: this._listTitle }],
+                  selectedKey: this._listTitle,
                 }),
               ],
             },

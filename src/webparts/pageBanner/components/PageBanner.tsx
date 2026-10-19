@@ -23,6 +23,8 @@ export interface IPageBannerProps {
   embedded?: boolean;
   /** Set false when the host places the logo itself. */
   showLogo?: boolean;
+  /** Set false to hide the title row; the toolbar in `children` and the starfield stay. */
+  showTitle?: boolean;
   /** Shown under the title and logo, over the starfield. */
   children?: React.ReactNode;
 }
@@ -30,7 +32,7 @@ export interface IPageBannerProps {
 /** Matches the light canvas of the Process Hierarchy and Master RASCI web parts. */
 const LIGHT_BACKGROUND = '#F4F6F9';
 
-const PageBanner: React.FC<IPageBannerProps> = ({ title, height, backgroundColor, showSparkles, followPageTheme, theme: ownTheme, embedded, showLogo = true, children }) => {
+const PageBanner: React.FC<IPageBannerProps> = ({ title, height, backgroundColor, showSparkles, followPageTheme, theme: ownTheme, embedded, showLogo = true, showTitle = true, children }) => {
   const pageTheme = usePageTheme(followPageTheme && !ownTheme);
   const theme = ownTheme || pageTheme;
   const light = theme === 'light';
@@ -53,7 +55,7 @@ const PageBanner: React.FC<IPageBannerProps> = ({ title, height, backgroundColor
 
   return (
     <div
-      className={`${styles.banner} ${light ? styles.light : ''} ${embedded ? styles.embedded : ''}`}
+      className={`${styles.banner} ${light ? styles.light : ''} ${embedded ? styles.embedded : ''} ${showTitle ? '' : styles.noTitle}`}
       style={{
         height: height || undefined,
         background,
@@ -61,7 +63,7 @@ const PageBanner: React.FC<IPageBannerProps> = ({ title, height, backgroundColor
         ['--strip-left' as string]: `${stripLeft}px`,
       }}
     >
-      <div className={styles.row}>
+      {showTitle && <div className={styles.row}>
         <h1 className={styles.title}>
           <span ref={firstLetterRef}>{title.charAt(0)}</span>{title.slice(1)}
         </h1>
@@ -72,7 +74,7 @@ const PageBanner: React.FC<IPageBannerProps> = ({ title, height, backgroundColor
             alt="Zinfra - Your trusted partner in energy"
           />
         )}
-      </div>
+      </div>}
       {children && <div className={styles.below}>{children}</div>}
       {showSparkles && (
         <div className={styles.sparkles} aria-hidden="true">
