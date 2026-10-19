@@ -2,35 +2,11 @@
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
   "version": "2.0",
   "bundles": {
-    "vertical-flow-web-part": {
-      "components": [
-        {
-          "entrypoint": "./lib/webparts/verticalFlow/VerticalFlowWebPart.js",
-          "manifest": "./src/webparts/verticalFlow/VerticalFlowWebPart.manifest.json"
-        }
-      ]
-    },
-    "process-panel-web-part": {
-      "components": [
-        {
-          "entrypoint": "./lib/webparts/processPanel/ProcessPanelWebPart.js",
-          "manifest": "./src/webparts/processPanel/ProcessPanelWebPart.manifest.json"
-        }
-      ]
-    },
     "process-hierarchy-web-part": {
       "components": [
         {
           "entrypoint": "./lib/webparts/processHierarchy/ProcessHierarchyWebPart.js",
           "manifest": "./src/webparts/processHierarchy/ProcessHierarchyWebPart.manifest.json"
-        }
-      ]
-    },
-    "page-banner-web-part": {
-      "components": [
-        {
-          "entrypoint": "./lib/webparts/pageBanner/PageBannerWebPart.js",
-          "manifest": "./src/webparts/pageBanner/PageBannerWebPart.manifest.json"
         }
       ]
     },
